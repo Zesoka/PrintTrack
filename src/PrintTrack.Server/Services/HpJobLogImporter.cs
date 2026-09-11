@@ -3,7 +3,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using PrintTrack.Server.Data;
+using PrintTrack.Server.Options;
 using PrintTrack.Shared;
 
 namespace PrintTrack.Server.Services;
@@ -18,8 +20,20 @@ public sealed record ImportResult(int TotalRows, int Imported, int Duplicates, i
 /// <see cref="PrintJobRecord"/> rows. Columns expected: Usuario, Nombre trab., Tipo, Estado, Fecha/Hora.
 /// The export carries no page count, so <c>Sheets</c> stays 0 for imported rows.
 /// </summary>
-public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogImporter> logger)
+public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogImporter> logger, IOptions<PrintTrackOptions> options)
 {
+    // The device reports its Job Log timestamps in its own local clock, with no offset — we saw it
+    // confirmed set to "(GMT-03:00) Buenos Aires" on the printer's own Fecha y hora page. Convert to
+    // real UTC using the configured device time zone instead of (wrongly) treating it as UTC as-is.
+    private readonly TimeZoneInfo _deviceTz = ResolveTimeZone(options.Value.JobLog.DeviceTimeZoneId);
+
+    private static TimeZoneInfo ResolveTimeZone(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return TimeZoneInfo.Utc;
+        try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+        catch (Exception) { return TimeZoneInfo.Utc; }
+    }
+
     private static readonly Dictionary<string, string> Months = new(StringComparer.OrdinalIgnoreCase)
     {
         ["ene"] = "01", ["jan"] = "01", ["feb"] = "02", ["mar"] = "03", ["abr"] = "04", ["apr"] = "04",
@@ -208,7 +222,7 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
         _ => PrintJobStatus.Printed
     };
 
-    private static bool TryParseWhen(string raw, out DateTimeOffset when)
+    private bool TryParseWhen(string raw, out DateTimeOffset when)
     {
         when = default;
         var s = raw.Trim();
@@ -226,7 +240,10 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
         if (DateTime.TryParseExact(s, formats, CultureInfo.InvariantCulture,
                 DateTimeStyles.AllowWhiteSpaces, out var dt))
         {
-            when = new DateTimeOffset(DateTime.SpecifyKind(dt, DateTimeKind.Utc), TimeSpan.Zero);
+            // dt is the printer's own local wall-clock time (no offset info) — convert it to real
+            // UTC via the configured device time zone instead of mislabeling it as UTC.
+            var utc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(dt, DateTimeKind.Unspecified), _deviceTz);
+            when = new DateTimeOffset(utc, TimeSpan.Zero);
             return true;
         }
         return false;

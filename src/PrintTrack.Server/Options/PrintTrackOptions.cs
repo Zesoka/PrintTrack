@@ -27,6 +27,11 @@ public sealed class JobLogOptions
 
     /// <summary>HTTP timeout per device, seconds.</summary>
     public int TimeoutSeconds { get; set; } = 30;
+
+    /// <summary>IANA id of the time zone the printer's own clock (and its Job Log timestamps) is
+    /// set to. The device reports plain local time with no offset — we need this to convert it to
+    /// real UTC for storage. Argentina has used UTC-3 year-round (no DST) since 2009.</summary>
+    public string DeviceTimeZoneId { get; set; } = "America/Argentina/Buenos_Aires";
 }
 
 public sealed class MeterOptions
