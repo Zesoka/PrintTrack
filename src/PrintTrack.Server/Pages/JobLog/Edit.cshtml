@@ -65,7 +65,9 @@
                             <td class="text-truncate" style="max-width:260px">@j.Get("job-name")</td>
                             <td class="text-end">@(j.GetInt("job-impressions-completed")?.ToString() ?? "—")</td>
                             <td class="text-end">@(j.GetInt("job-media-sheets-completed")?.ToString() ?? "—")</td>
-                            <td class="small">@j.GetInt("job-state")</td>
+                            <td class="small">@(j.GetInt("job-state") switch {
+                                3 => "pendiente", 4 => "retenido", 5 => "procesando", 6 => "detenido",
+                                7 => "cancelado", 8 => "abortado", 9 => "completado", var s => s?.ToString() ?? "—" })</td>
                         </tr>
                     }
                     </tbody>

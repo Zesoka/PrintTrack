@@ -175,9 +175,22 @@ public sealed class IppClient(ILogger<IppClient> logger)
                 ? (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]
                 : 0;
         if (tag == 0x22) return len == 1 && data[offset] != 0;   // boolean
-        if (tag is 0x41 or 0x42 or 0x44 or 0x45 or 0x46 or 0x47 or 0x48 or 0x49)   // text/name/keyword/uri/...
-            return Encoding.UTF8.GetString(data, offset, len);
         if (tag is 0x10 or 0x12 or 0x13) return "";               // unsupported/unknown/no-value
-        return Convert.ToHexString(data, offset, len);            // octetString/dateTime/collection/... — not needed here
+        if (tag is 0x35 or 0x36)   // textWithLanguage / nameWithLanguage: 2B langLen+lang, 2B textLen+text
+        {
+            try
+            {
+                var p = offset;
+                var langLen = (data[p] << 8) | data[p + 1]; p += 2 + langLen;
+                var textLen = (data[p] << 8) | data[p + 1]; p += 2;
+                return Encoding.UTF8.GetString(data, p, textLen);
+            }
+            catch { /* fall through to flat decode below */ }
+        }
+        // Every other tag (text/name/keyword/uri/octetString/...) — this HP stack sends
+        // job-originating-user-name etc. as plain UTF-8 bytes under tags outside the "official"
+        // text-syntax list, so just decode anything that isn't integer/boolean as text.
+        try { return Encoding.UTF8.GetString(data, offset, len); }
+        catch { return Convert.ToHexString(data, offset, len); }
     }
 }
