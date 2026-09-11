@@ -1,0 +1,26 @@
+# OpenSSL config that re-enables legacy TLS so the app's *outbound* HTTPS client can talk to
+# old printer web servers (HP FutureSmart M630 and similar: TLS 1.0, SHA-1 certs, legacy ciphers).
+# Applied only inside the app container via OPENSSL_CONF — the server's own inbound traffic is HTTP.
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = provider_sect
+ssl_conf = ssl_sect
+
+[provider_sect]
+default = default_sect
+legacy = legacy_sect
+
+[default_sect]
+activate = 1
+
+[legacy_sect]
+activate = 1
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+MinProtocol = TLSv1
+CipherString = DEFAULT@SECLEVEL=0
+Options = UnsafeLegacyServerConnect

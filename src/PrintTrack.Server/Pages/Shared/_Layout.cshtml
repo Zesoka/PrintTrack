@@ -1,0 +1,68 @@
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<AdminUser> SignInManager
+@{
+    var signedIn = SignInManager.IsSignedIn(User);
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · Auditor de impresiones</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%96%A8%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+    <style>
+        body { background:#f6f7f9; }
+        .navbar-brand { font-weight:700; letter-spacing:.3px; }
+        .kpi { font-size:1.9rem; font-weight:700; }
+        .table-sm td, .table-sm th { padding:.4rem .5rem; }
+        main { padding-bottom:3rem; }
+    </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">🖨️ Auditor de impresiones</a>
+        @if (signedIn)
+        {
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="nav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Panel</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Jobs">Trabajos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Users">Usuarios</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Printers">Impresoras</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Meters">Contadores</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/JobLog">Job Log</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Catalogs">Catálogos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/AgentKeys">Claves de agente</a></li>
+                </ul>
+                <span class="navbar-text text-light me-3">@User.Identity?.Name</span>
+                <form method="post" action="/Account/Logout">
+                    <button class="btn btn-outline-light btn-sm" type="submit">Salir</button>
+                </form>
+            </div>
+        }
+    </div>
+</nav>
+<main class="container mt-4">
+    @if (TempData["Msg"] is string msg)
+    {
+        <div class="alert alert-success alert-dismissible fade show">@msg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Err"] is string err)
+    {
+        <div class="alert alert-danger alert-dismissible fade show">@err
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @RenderBody()
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

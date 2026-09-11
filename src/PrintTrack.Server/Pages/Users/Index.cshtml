@@ -1,0 +1,49 @@
+@page
+@model PrintTrack.Server.Pages.Users.IndexModel
+@{ ViewData["Title"] = "Usuarios"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Usuarios</h3>
+    <a class="btn btn-primary btn-sm" href="/Users/Edit">Nuevo usuario</a>
+</div>
+
+<form method="get" class="mb-3">
+    <div class="input-group" style="max-width:360px">
+        <input name="q" value="@Model.Q" class="form-control form-control-sm" placeholder="Buscar usuario…" />
+        <button class="btn btn-outline-secondary btn-sm">Buscar</button>
+    </div>
+</form>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead><tr>
+                <th>Usuario</th><th>Nombre</th><th>Área</th>
+                <th class="text-end">Hojas (30 d)</th><th class="text-end">Trab. (30 d)</th>
+                <th>Estado</th><th></th>
+            </tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr>
+                    <td><code>@r.User.UserName</code></td>
+                    <td>@r.User.FullName</td>
+                    <td>@(r.User.Department?.Name ?? "—")</td>
+                    <td class="text-end">@r.Sheets30</td>
+                    <td class="text-end">@r.Jobs30</td>
+                    <td>
+                        @if (r.User.IsBlocked) { <span class="badge bg-danger">Bloqueado</span> }
+                        else { <span class="badge bg-success">Activo</span> }
+                        @if (r.User.AutoCreated) { <span class="badge bg-light text-muted">auto</span> }
+                    </td>
+                    <td class="text-end"><a class="btn btn-outline-secondary btn-sm" href="/Users/Edit?id=@r.User.Id">Editar</a></td>
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="7" class="text-center text-muted py-3">Sin resultados.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

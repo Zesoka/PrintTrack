@@ -1,0 +1,30 @@
+@page
+@model PrintTrack.Server.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Ingresar";
+}
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <div class="card shadow-sm mt-5">
+            <div class="card-body">
+                <h4 class="card-title mb-3">🖨️ Auditor de impresiones</h4>
+                <form method="post">
+                    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Usuario</label>
+                        <input asp-for="Input.UserName" class="form-control" autofocus />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña</label>
+                        <input asp-for="Input.Password" type="password" class="form-control" />
+                    </div>
+                    <div class="form-check mb-3">
+                        <input asp-for="Input.RememberMe" class="form-check-input" />
+                        <label asp-for="Input.RememberMe" class="form-check-label">Recordarme</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

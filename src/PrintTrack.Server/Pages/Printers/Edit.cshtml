@@ -1,0 +1,28 @@
+@page
+@model PrintTrack.Server.Pages.Printers.EditModel
+@{ ViewData["Title"] = "Editar impresora"; }
+
+<h3 class="mb-3">Editar impresora</h3>
+
+<div class="row"><div class="col-lg-5">
+<div class="card shadow-sm"><div class="card-body">
+    <form method="post">
+        <input type="hidden" asp-for="Input.Id" />
+        <div class="mb-3"><label class="form-label">Nombre (cola)</label>
+            <input asp-for="Input.Name" class="form-control" readonly /></div>
+        <div class="mb-3"><label class="form-label">Ubicación</label>
+            <input asp-for="Input.Location" class="form-control" placeholder="Piso 2 — Contabilidad" /></div>
+        <div class="mb-3"><label class="form-label">Sede</label>
+            <select asp-for="Input.SiteId" asp-items="Model.Sites" class="form-select">
+                <option value="">— Sin sede —</option>
+            </select>
+            <div class="form-text">Los trabajos importados del registro de este equipo quedan en esta sede.</div></div>
+        <div class="form-check"><input asp-for="Input.IsTracked" class="form-check-input" />
+            <label class="form-check-label" asp-for="Input.IsTracked">Registrar los trabajos de esta impresora</label></div>
+        <div class="form-check mb-3"><input asp-for="Input.IsDisabled" class="form-check-input" />
+            <label class="form-check-label" asp-for="Input.IsDisabled">Deshabilitar — denegar todos los trabajos</label></div>
+        <button class="btn btn-primary">Guardar</button>
+        <a href="/Printers" class="btn btn-link">Volver</a>
+    </form>
+</div></div>
+</div></div>

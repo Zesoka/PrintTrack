@@ -1,0 +1,16 @@
+@page
+@model PrintTrack.Server.Pages.ErrorModel
+@{
+    ViewData["Title"] = "Error";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>Error</title></head>
+<body style="font-family:system-ui;margin:3rem">
+<h1>Se produjo un error</h1>
+<p>Ocurrió un problema al procesar la solicitud.</p>
+@if (Model.ShowRequestId)
+{
+    <p><strong>Request ID:</strong> <code>@Model.RequestId</code></p>
+}
+</body></html>

@@ -1,0 +1,66 @@
+@page
+@model PrintTrack.Server.Pages.Printers.IndexModel
+@{ ViewData["Title"] = "Impresoras"; }
+
+<h3 class="mb-3">Impresoras</h3>
+<p class="text-muted small">Se registran solas cuando un agente ve un trabajo o manda su heartbeat.</p>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead><tr>
+                        <th>Nombre</th><th>Equipo</th><th>Ubicación</th>
+                        <th class="text-end">Hojas (30 d)</th><th class="text-end">Trab. (30 d)</th>
+                        <th>Estado</th><th>Vista</th><th></th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td><code>@r.Printer.Name</code></td>
+                            <td class="small text-muted">@(r.Printer.WorkstationName ?? "(cola de servidor / manual)")</td>
+                            <td class="small">@r.Printer.Location</td>
+                            <td class="text-end">@r.Sheets30</td>
+                            <td class="text-end">@r.Jobs30</td>
+                            <td>
+                                @if (r.Printer.IsDisabled) { <span class="badge bg-danger">Deshabilitada</span> }
+                                else if (!r.Printer.IsTracked) { <span class="badge bg-secondary">Sin registrar</span> }
+                                else { <span class="badge bg-success">Activa</span> }
+                            </td>
+                            <td class="small text-muted">@(r.Printer.LastSeenAt == r.Printer.FirstSeenAt ? "—" : Ui.Ago(r.Printer.LastSeenAt))</td>
+                            <td class="text-end text-nowrap">
+                                <a class="btn btn-outline-secondary btn-sm" href="/Printers/Edit?id=@r.Printer.Id">Editar</a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@r.Printer.Id" class="d-inline"
+                                      onsubmit="return confirm('¿Eliminar esta impresora?');">
+                                    <button class="btn btn-link btn-sm text-danger p-0 ms-1">×</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Rows.Count == 0)
+                    {
+                        <tr><td colspan="8" class="text-center text-muted py-3">Ninguna impresora todavía.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm"><div class="card-body">
+            <h6>Agregar impresora a mano</h6>
+            <p class="text-muted small">Casi nunca hace falta — los agentes las registran solos.</p>
+            <form method="post" asp-page-handler="Create">
+                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                <div class="mb-2"><label class="form-label">Nombre</label>
+                    <input asp-for="Create.Name" class="form-control" /></div>
+                <div class="mb-2"><label class="form-label">Ubicación</label>
+                    <input asp-for="Create.Location" class="form-control" /></div>
+                <button class="btn btn-primary btn-sm">Crear</button>
+            </form>
+        </div></div>
+    </div>
+</div>

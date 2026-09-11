@@ -1,0 +1,127 @@
+@page
+@model PrintTrack.Server.Pages.IndexModel
+@{
+    ViewData["Title"] = "Panel";
+}
+
+<h3 class="mb-3">Panel de control</h3>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="card shadow-sm"><div class="card-body">
+        <div class="text-muted small">Trabajos impresos hoy</div><div class="kpi">@Model.JobsToday</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card shadow-sm"><div class="card-body">
+        <div class="text-muted small">Hojas hoy</div><div class="kpi">@Model.SheetsToday</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card shadow-sm"><div class="card-body">
+        <div class="text-muted small">Hojas color hoy</div><div class="kpi">@Model.ColorSheetsToday</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card shadow-sm"><div class="card-body">
+        <div class="text-muted small">Denegados hoy</div><div class="kpi text-danger">@Model.DeniedToday</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body">
+        <div class="text-muted small">Usuarios</div><div class="kpi">@Model.UsersCount</div></div></div></div>
+    <div class="col-6 col-md-3"><div class="card"><div class="card-body">
+        <div class="text-muted small">Impresoras activas (24 h)</div><div class="kpi">@Model.PrintersOnline</div></div></div></div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">Actividad por sede — últimos 7 días</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var t in Model.BySite)
+                {
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>@t.Name <span class="text-muted small">(@t.Sheets hojas)</span></span>
+                        <strong>@t.Jobs trab.</strong>
+                    </li>
+                }
+                @if (Model.BySite.Count == 0) { <li class="list-group-item text-muted">Sin actividad.</li> }
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header">Actividad por área — últimos 7 días</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var t in Model.ByDepartment)
+                {
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>@t.Name <span class="text-muted small">(@t.Sheets hojas)</span></span>
+                        <strong>@t.Jobs trab.</strong>
+                    </li>
+                }
+                @if (Model.ByDepartment.Count == 0) { <li class="list-group-item text-muted">Sin actividad.</li> }
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between">
+                <span>Trabajos recientes</span><a href="/Jobs" class="small">Ver todos</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead><tr><th>Cuándo</th><th>Sede</th><th>Área</th><th>Usuario</th><th>Documento</th><th>Impresora</th>
+                        <th class="text-end">Hojas</th><th>Estado</th></tr></thead>
+                    <tbody>
+                    @foreach (var j in Model.Recent)
+                    {
+                        <tr>
+                            <td class="text-nowrap small text-muted">@Ui.Ago(j.SubmittedAt)</td>
+                            <td class="small">@(j.Site?.Name ?? "—")</td>
+                            <td class="small">@(j.EndUser.Department?.Name ?? "—")</td>
+                            <td>@j.UserNameRaw</td>
+                            <td class="text-truncate" style="max-width:180px" title="@j.DocumentName">@j.DocumentName</td>
+                            <td class="small">@j.PrinterNameRaw</td>
+                            <td class="text-end">@(j.Source == PrintTrack.Server.Data.JobSource.HpJobLog ? "s/d" : j.Sheets.ToString())</td>
+                            <td><span class="badge bg-@Ui.StatusBadge(j.Status)">@Ui.StatusText(j.Status)</span></td>
+                        </tr>
+                    }
+                    @if (Model.Recent.Count == 0)
+                    {
+                        <tr><td colspan="8" class="text-center text-muted py-3">Sin trabajos todavía.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-3">
+            <div class="card-header">Top usuarios hoy</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var t in Model.TopUsers)
+                {
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>@t.Name <span class="text-muted small">(@t.Sheets hojas)</span></span>
+                        <strong>@t.Jobs</strong>
+                    </li>
+                }
+                @if (Model.TopUsers.Count == 0)
+                {
+                    <li class="list-group-item text-muted">Sin actividad hoy.</li>
+                }
+            </ul>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-header">Top impresoras hoy</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var t in Model.TopPrinters)
+                {
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>@t.Name <span class="text-muted small">(@t.Sheets hojas)</span></span>
+                        <strong>@t.Jobs</strong>
+                    </li>
+                }
+                @if (Model.TopPrinters.Count == 0)
+                {
+                    <li class="list-group-item text-muted">Sin actividad hoy.</li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,106 @@
+@page
+@model PrintTrack.Server.Pages.AgentKeys.IndexModel
+@{ ViewData["Title"] = "Claves de agente"; }
+
+<h3 class="mb-3">Claves de agente</h3>
+<p class="text-muted small">Cada equipo con el agente instalado envía esta clave en la cabecera <code>X-Api-Key</code>. Usá una clave por sede.</p>
+
+@if (Model.NewPlaintextKey is not null)
+{
+    <div class="alert alert-warning">
+        <strong>Clave nueva — se muestra una sola vez. Copiala y guardala ahora.</strong>
+
+        <div class="mt-2 mb-1 small text-muted">Clave (<code>X-Api-Key</code>):</div>
+        <div class="input-group">
+            <input id="ptKey" class="form-control font-monospace" value="@Model.NewPlaintextKey" readonly onclick="this.select()" />
+            <button class="btn btn-outline-secondary" type="button" onclick="ptCopy('ptKey', this)">Copiar</button>
+        </div>
+
+        <div class="mt-3 mb-1 small text-muted">Comando de instalación (PowerShell como Administrador, en la carpeta <code>deploy</code>):</div>
+        <div class="input-group">
+            <textarea id="ptCmd" class="form-control font-monospace" rows="2" readonly onclick="this.select()">@Model.NewInstallCommand</textarea>
+            <button class="btn btn-outline-secondary" type="button" onclick="ptCopy('ptCmd', this)">Copiar</button>
+        </div>
+        <div class="form-text">Ajustá <code>-SourceDir</code> a donde copiaste la carpeta del agente. La misma clave sirve para todas las PC de esta sede.</div>
+    </div>
+
+    <script>
+        function ptCopy(id, btn) {
+            var el = document.getElementById(id);
+            el.select();
+            navigator.clipboard.writeText(el.value).then(function () {
+                var t = btn.textContent; btn.textContent = 'Copiado ✓';
+                setTimeout(function () { btn.textContent = t; }, 1500);
+            });
+        }
+    </script>
+}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead><tr><th>Nombre</th><th>Sede</th><th>Prefijo</th><th>Creada</th><th>Último uso</th>
+                        <th>Equipo</th><th>Estado</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var k in Model.Keys)
+                    {
+                        <tr class="@(k.IsActive ? "" : "text-muted")">
+                            <td>@k.Name</td>
+                            <td class="small">@(k.Site?.Name ?? "—")</td>
+                            <td><code>@k.Prefix…</code></td>
+                            <td class="small">@k.CreatedAt.LocalDateTime.ToString("g")</td>
+                            <td class="small">@(k.LastUsedAt?.LocalDateTime.ToString("g") ?? "—")</td>
+                            <td class="small">@k.LastUsedFromWorkstation</td>
+                            <td>
+                                @if (k.IsActive)
+                                {
+                                    <span class="badge bg-success">activa</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">revocada</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (k.IsActive)
+                                {
+                                    <form method="post" asp-page-handler="Revoke" asp-route-id="@k.Id"
+                                          onsubmit="return confirm('¿Revocar esta clave? Los agentes que la usen dejarán de funcionar.');">
+                                        <button class="btn btn-outline-danger btn-sm">Revocar</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Keys.Count == 0)
+                    {
+                        <tr><td colspan="8" class="text-center text-muted py-3">Sin claves.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm"><div class="card-body">
+            <h6>Generar clave</h6>
+            <form method="post" asp-page-handler="Create">
+                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                <div class="mb-2">
+                    <label class="form-label">Nombre / descripción</label>
+                    <input asp-for="NewKeyName" class="form-control" placeholder="Sucursal Norte" />
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Sede</label>
+                    <select asp-for="NewKeySiteId" asp-items="Model.Sites" class="form-select">
+                        <option value="">— Sin sede —</option>
+                    </select>
+                    <div class="form-text">Los trabajos reportados con esta clave quedan en esta sede. Definilas en <a href="/Catalogs">Catálogos</a>.</div>
+                </div>
+                <button class="btn btn-primary btn-sm">Generar</button>
+            </form>
+        </div></div>
+    </div>
+</div>

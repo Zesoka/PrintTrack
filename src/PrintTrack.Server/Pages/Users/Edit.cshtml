@@ -1,0 +1,37 @@
+@page
+@model PrintTrack.Server.Pages.Users.EditModel
+@{ ViewData["Title"] = Model.IsNew ? "Nuevo usuario" : "Editar usuario"; }
+
+<h3 class="mb-3">@ViewData["Title"]</h3>
+
+<div class="row"><div class="col-lg-6">
+<div class="card shadow-sm"><div class="card-body">
+    <form method="post">
+        <input type="hidden" asp-for="Input.Id" />
+        <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+        <div class="mb-3">
+            <label class="form-label">Login de Windows</label>
+            <input asp-for="Input.UserName" class="form-control" placeholder="DOMINIO\usuario o usuario" />
+        </div>
+        <div class="row">
+            <div class="col mb-3"><label class="form-label">Nombre completo</label>
+                <input asp-for="Input.FullName" class="form-control" /></div>
+            <div class="col mb-3"><label class="form-label">Área / Departamento</label>
+                <select asp-for="Input.DepartmentId" asp-items="Model.Departments" class="form-select">
+                    <option value="">— Sin área —</option>
+                </select></div>
+        </div>
+        <div class="mb-3"><label class="form-label">Email</label>
+            <input asp-for="Input.Email" class="form-control" /></div>
+
+        <div class="form-check mb-3">
+            <input asp-for="Input.IsBlocked" class="form-check-input" />
+            <label asp-for="Input.IsBlocked" class="form-check-label">Bloqueado — se deniegan todas sus impresiones</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Guardar</button>
+        <a href="/Users" class="btn btn-link">Volver</a>
+    </form>
+</div></div>
+</div></div>

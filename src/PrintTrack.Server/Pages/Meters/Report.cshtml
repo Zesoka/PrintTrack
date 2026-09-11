@@ -1,0 +1,70 @@
+@page
+@model PrintTrack.Server.Pages.Meters.ReportModel
+@{ ViewData["Title"] = "Contadores — reporte"; }
+
+<h3 class="mb-3">Contadores por período</h3>
+
+<form method="get" class="row g-2 mb-3 align-items-end">
+    <div class="col-auto"><label class="form-label small mb-0">Desde</label>
+        <input name="from" type="date" value="@Model.PeriodStart.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
+    <div class="col-auto"><label class="form-label small mb-0">Hasta</label>
+        <input name="to" type="date" value="@Model.PeriodEnd.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
+    <div class="col-auto">
+        <button class="btn btn-outline-secondary btn-sm">Ver</button>
+        <a href="?handler=Export&from=@Model.PeriodStart.ToString("yyyy-MM-dd")&to=@Model.PeriodEnd.ToString("yyyy-MM-dd")"
+           class="btn btn-outline-primary btn-sm">Exportar CSV</a>
+        <a href="/Meters" class="btn btn-link btn-sm">Config</a>
+    </div>
+</form>
+
+<p class="text-muted small">
+    Δ = diferencia entre la lectura más cercana anterior al período y la última del período.
+    "parcial" = no había lectura previa al inicio, se tomó la primera dentro del rango.
+</p>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr>
+                <th>Impresora</th><th>Hostname SNMP</th><th>Host</th>
+                <th>Base</th><th>Final</th>
+                <th class="text-end">Δ total</th><th class="text-end">Δ B/N</th><th class="text-end">Δ color</th>
+            </tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr class="@(r.Backwards ? "table-warning" : "")">
+                    <td><code>@r.Printer</code></td>
+                    <td class="small">@r.DeviceName</td>
+                    <td class="small text-muted">@r.Host</td>
+                    <td class="small text-nowrap">@r.BaselineAt?.LocalDateTime.ToString("dd/MM/yy")
+                        @if (r.Partial) { <span class="badge bg-warning text-dark">parcial</span> }</td>
+                    <td class="small text-nowrap">@r.EndAt?.LocalDateTime.ToString("dd/MM/yy")</td>
+                    <td class="text-end fw-semibold">@r.DeltaTotal.ToString("N0")</td>
+                    <td class="text-end">@(r.DeltaMono?.ToString("N0") ?? "—")</td>
+                    <td class="text-end">@(r.DeltaColor?.ToString("N0") ?? "—")</td>
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="8" class="text-center text-muted py-3">
+                    Sin datos para el período. Hacen falta al menos dos lecturas SNMP por impresora.</td></tr>
+            }
+            </tbody>
+            @if (Model.Rows.Count > 0)
+            {
+                <tfoot><tr class="fw-semibold">
+                    <td colspan="5" class="text-end">TOTAL</td>
+                    <td class="text-end">@Model.TotTotal.ToString("N0")</td>
+                    <td class="text-end">@(Model.TotMono > 0 ? Model.TotMono.ToString("N0") : "—")</td>
+                    <td class="text-end">@(Model.TotColor > 0 ? Model.TotColor.ToString("N0") : "—")</td>
+                </tr></tfoot>
+            }
+        </table>
+    </div>
+</div>
+
+@if (Model.Rows.Any(r => r.Backwards))
+{
+    <p class="text-warning small mt-2">Filas resaltadas: el contador bajó entre lecturas (posible cambio de equipo o reinicio del contador).</p>
+}

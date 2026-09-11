@@ -1,0 +1,64 @@
+@page
+@model PrintTrack.Server.Pages.JobLog.EditModel
+@{ ViewData["Title"] = $"Job Log · {Model.Printer.Name}"; }
+
+<h3 class="mb-1">Job Log HP — configuración</h3>
+<p class="text-muted"><code>@Model.Printer.Name</code></p>
+
+<div class="row"><div class="col-lg-6">
+<div class="card shadow-sm"><div class="card-body">
+    <form method="post" asp-page-handler="Save">
+        <input type="hidden" asp-for="Input.PrinterId" />
+        <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+        <div class="form-check mb-3">
+            <input asp-for="Input.Enabled" class="form-check-input" />
+            <label asp-for="Input.Enabled" class="form-check-label">Traer el Job Log de este equipo automáticamente</label>
+        </div>
+
+        <div class="mb-2"><label class="form-label">URL base del equipo</label>
+            <input asp-for="Input.BaseUrl" class="form-control" placeholder="https://192.168.30.4" />
+            <div class="form-text">Solo el origen: protocolo + IP/host, sin barra final ni ruta.</div></div>
+
+        <div class="mb-2"><label class="form-label">Ruta del reporte (EWS)</label>
+            <input asp-for="Input.ReportPath" class="form-control font-monospace" /></div>
+
+        <div class="mb-2"><label class="form-label">ID de formato de export (JobLogRadioButton)</label>
+            <input asp-for="Input.ExportFormatId" class="form-control font-monospace" />
+            <div class="form-text">Es el GUID de la opción "CSV (comas)" del diálogo Exportar. El default
+                sirve para la familia M630; otro modelo puede tener otro (se saca con F12 → Network → Payload).</div></div>
+
+        <details class="mb-3">
+            <summary class="small text-muted">Credenciales (solo si el equipo pide login para ver el registro)</summary>
+            <div class="row mt-2">
+                <div class="col-6 mb-2"><label class="form-label">Usuario</label>
+                    <input asp-for="Input.Username" class="form-control form-control-sm" /></div>
+                <div class="col-6 mb-2"><label class="form-label">Clave</label>
+                    <input asp-for="Input.Password" type="password" class="form-control form-control-sm" /></div>
+            </div>
+        </details>
+
+        <button class="btn btn-primary" asp-page-handler="Save">Guardar</button>
+        <button class="btn btn-outline-primary" asp-page-handler="Poll">Guardar y traer ahora</button>
+        <a href="/JobLog" class="btn btn-link">Volver</a>
+    </form>
+
+    @if (Model.Cfg is { } c)
+    {
+        <hr />
+        <div class="small text-muted">
+            Último pull: @(c.LastPolledAt is { } t ? t.LocalDateTime.ToString("g") : "nunca")
+            · importados: @c.LastImported
+            @if (c.LastError is { Length: > 0 }) { <br /><span class="text-danger">@c.LastError</span> }
+        </div>
+        @if (c.LastResponseSnippet is { Length: > 0 })
+        {
+            <details class="mt-2">
+                <summary class="small text-muted">Diagnóstico — lo que devolvió la impresora (copiá y pegá esto si el pull falla)</summary>
+                <textarea class="form-control font-monospace mt-1" rows="12" readonly
+                          onclick="this.select()">@c.LastResponseSnippet</textarea>
+            </details>
+        }
+    }
+</div></div>
+</div></div>

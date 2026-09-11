@@ -1,0 +1,59 @@
+@page
+@model PrintTrack.Server.Pages.Jobs.ImportModel
+@{ ViewData["Title"] = "Importar registro de impresora"; }
+
+<h3 class="mb-3">Importar registro de trabajos (HP)</h3>
+
+<div class="row"><div class="col-lg-7">
+    <div class="card shadow-sm mb-3"><div class="card-body small text-muted">
+        En el EWS de la impresora: <strong>Información → Reg. de trabajos → Exportar</strong>,
+        elegí <strong>CSV</strong> o <strong>Texto (tabulaciones)</strong>, y subí ese archivo acá.
+        Elegí a qué impresora del panel corresponde. El importador deduplica, así que podés subir el
+        mismo archivo varias veces sin repetir trabajos. La <strong>sede</strong> del trabajo sale de
+        la impresora (asignala en <a href="/Printers">Impresoras</a>); el <strong>área</strong>, del usuario.
+        No trae cantidad de hojas (queda "s/d").
+    </div></div>
+
+    <div class="card shadow-sm"><div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+            <div class="mb-3">
+                <label class="form-label">Impresora</label>
+                <select asp-for="PrinterId" asp-items="Model.Printers" class="form-select">
+                    <option value="0">— Elegí —</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Archivo exportado (.csv / .txt)</label>
+                <input asp-for="Upload" type="file" accept=".csv,.txt,text/csv,text/plain" class="form-control" />
+            </div>
+            <div class="form-check mb-3">
+                <input asp-for="OnlyPrintJobs" class="form-check-input" />
+                <label asp-for="OnlyPrintJobs" class="form-check-label">Solo trabajos de impresión (ignora copia / correo / fax)</label>
+            </div>
+            <button type="submit" class="btn btn-primary">Importar</button>
+            <a href="/Jobs" class="btn btn-link">Volver a Trabajos</a>
+        </form>
+    </div></div>
+
+    @if (Model.Result is { } r)
+    {
+        <div class="card shadow-sm mt-3"><div class="card-body">
+            <h6>Resultado</h6>
+            @if (!r.Ok)
+            {
+                <div class="alert alert-danger mb-0">@r.FatalError</div>
+            }
+            else
+            {
+                <table class="table table-sm mb-0">
+                    <tr><td>Filas en el archivo</td><td class="text-end">@r.TotalRows</td></tr>
+                    <tr><td>Importados (nuevos)</td><td class="text-end fw-semibold">@r.Imported</td></tr>
+                    <tr><td>Duplicados (ya estaban)</td><td class="text-end">@r.Duplicates</td></tr>
+                    <tr><td>Omitidos (no eran impresión)</td><td class="text-end">@r.SkippedType</td></tr>
+                    <tr><td>Con error de formato</td><td class="text-end">@r.Errors</td></tr>
+                </table>
+            }
+        </div></div>
+    }
+</div></div>

@@ -1,0 +1,68 @@
+@page
+@model PrintTrack.Server.Pages.Meters.IndexModel
+@{ ViewData["Title"] = "Contadores SNMP"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Contadores de impresora (SNMP)</h3>
+    <div>
+        <a href="/Meters/Report" class="btn btn-outline-secondary btn-sm">Reporte por período</a>
+        <form method="post" asp-page-handler="PollAll" class="d-inline">
+            <button class="btn btn-primary btn-sm">Sondear todas ahora</button>
+        </form>
+    </div>
+</div>
+<p class="text-muted small">
+    Lee el contador de páginas de cada equipo por SNMP, sin agente. OID por defecto:
+    <code>prtMarkerLifeCount.1.1</code> (Printer-MIB, funciona en casi toda HP). El desglose B/N vs color
+    usa OIDs del fabricante — se configuran por impresora.
+</p>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr>
+                <th>Impresora</th><th>Equipo</th><th>SNMP</th><th>Host</th><th>Hostname (SNMP)</th>
+                <th class="text-end">Total</th><th class="text-end">B/N</th><th class="text-end">Color</th>
+                <th>Última lectura</th><th></th>
+            </tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr>
+                    <td><code>@r.Printer.Name</code></td>
+                    <td class="small text-muted">@(r.Printer.WorkstationName ?? "(manual / servidor)")</td>
+                    <td>
+                        @if (r.Cfg?.Enabled == true) { <span class="badge bg-success">@r.Cfg.Version</span> }
+                        else { <span class="badge bg-secondary">off</span> }
+                    </td>
+                    <td class="small">@r.Cfg?.Host</td>
+                    <td class="small">@r.Cfg?.DeviceName</td>
+                    <td class="text-end">@(r.Last?.Total.ToString("N0") ?? "—")</td>
+                    <td class="text-end">@(r.Last?.Mono?.ToString("N0") ?? "—")</td>
+                    <td class="text-end">@(r.Last?.Color?.ToString("N0") ?? "—")</td>
+                    <td class="small">
+                        @if (r.Cfg?.LastError is { Length: > 0 })
+                        { <span class="text-danger" title="@r.Cfg.LastError">error</span> }
+                        else if (r.Last is not null) { <span class="text-muted">@Ui.Ago(r.Last.TakenAt)</span> }
+                        else { <span class="text-muted">—</span> }
+                    </td>
+                    <td class="text-end text-nowrap">
+                        @if (r.Cfg?.Enabled == true)
+                        {
+                            <form method="post" asp-page-handler="PollOne" asp-route-id="@r.Printer.Id" class="d-inline">
+                                <button class="btn btn-outline-primary btn-sm">Sondear</button>
+                            </form>
+                        }
+                        <a class="btn btn-outline-secondary btn-sm" href="/Meters/Edit?id=@r.Printer.Id">Config</a>
+                    </td>
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="10" class="text-center text-muted py-3">
+                    No hay impresoras. Agregá una en <a href="/Printers">Impresoras</a> y configurá su SNMP acá.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

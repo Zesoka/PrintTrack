@@ -1,0 +1,62 @@
+@page
+@model PrintTrack.Server.Pages.JobLog.IndexModel
+@{ ViewData["Title"] = "Job Log HP"; }
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Job Log HP — pull automático</h3>
+    <form method="post" asp-page-handler="PollAll" class="d-inline">
+        <button class="btn btn-primary btn-sm">Traer de todas ahora</button>
+    </form>
+</div>
+<p class="text-muted small">
+    El servidor baja el CSV del "Registro de trabajos" de cada impresora por HTTPS y lo importa
+    (usuario, documento, fecha). Sin agente. Cada
+    <code>PrintTrack:JobLog:PollMinutes</code> (20 min por defecto). Para la carga puntual manual,
+    usá <a href="/Jobs/Import">Importar de impresora</a>.
+</p>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+            <thead><tr>
+                <th>Impresora</th><th>Pull</th><th>URL base</th>
+                <th>Último pull</th><th class="text-end">Últ. import.</th><th>Estado</th><th></th>
+            </tr></thead>
+            <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                <tr>
+                    <td><code>@r.Printer.Name</code></td>
+                    <td>
+                        @if (r.Cfg?.Enabled == true) { <span class="badge bg-success">on</span> }
+                        else { <span class="badge bg-secondary">off</span> }
+                    </td>
+                    <td class="small">@r.Cfg?.BaseUrl</td>
+                    <td class="small">@(r.Cfg?.LastPolledAt is { } t ? Ui.Ago(t) : "—")</td>
+                    <td class="text-end">@(r.Cfg?.LastImported.ToString() ?? "—")</td>
+                    <td class="small">
+                        @if (r.Cfg?.LastError is { Length: > 0 })
+                        { <span class="text-danger" title="@r.Cfg.LastError">error</span> }
+                        else if (r.Cfg?.LastPolledAt is not null) { <span class="text-success">OK</span> }
+                        else { <span class="text-muted">—</span> }
+                    </td>
+                    <td class="text-end text-nowrap">
+                        @if (r.Cfg?.Enabled == true)
+                        {
+                            <form method="post" asp-page-handler="PollOne" asp-route-id="@r.Printer.Id" class="d-inline">
+                                <button class="btn btn-outline-primary btn-sm">Traer ahora</button>
+                            </form>
+                        }
+                        <a class="btn btn-outline-secondary btn-sm" href="/JobLog/Edit?id=@r.Printer.Id">Config</a>
+                    </td>
+                </tr>
+            }
+            @if (Model.Rows.Count == 0)
+            {
+                <tr><td colspan="7" class="text-center text-muted py-3">
+                    No hay impresoras. Agregá una en <a href="/Printers">Impresoras</a>.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PrintTrack.Agent/PrintTrack.Agent.csproj" />
+    <Project Path="src/PrintTrack.Server/PrintTrack.Server.csproj" />
+    <Project Path="src/PrintTrack.Shared/PrintTrack.Shared.csproj" />
+  </Folder>
+</Solution>

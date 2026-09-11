@@ -1,0 +1,48 @@
+# Corre el server desde una imagen YA construida (no compila nada).
+# Uso: construí la imagen en tu máquina de desarrollo, exportala y llevala a la mini PC:
+#
+#   # en la máquina de desarrollo (donde ya funciona el build):
+#   docker compose --profile full build server
+#   docker save printtrack-server:latest -o printtrack-server.tar
+#
+#   # copiás printtrack-server.tar + este archivo a la mini PC, y ahí:
+#   docker load -i printtrack-server.tar
+#   docker compose -f docker-compose.prebuilt.yml up -d
+#
+# La imagen ya trae adentro el openssl-legacy.cnf, así que no hace falta copiar nada más.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: printtrack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: printtrack
+      POSTGRES_USER: printtrack
+      POSTGRES_PASSWORD: printtrack
+    volumes:
+      - printtrack-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U printtrack"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    image: printtrack-server:latest
+    container_name: printtrack-server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Postgres: "Host=db;Port=5432;Database=printtrack;Username=printtrack;Password=printtrack"
+      ASPNETCORE_URLS: "http://+:8095"
+      PrintTrack__SeedAdminPassword: "ChangeMe!123"
+    volumes:
+      - printtrack-keys:/keys
+    ports:
+      - "8095:8095"
+
+volumes:
+  printtrack-pgdata:
+  printtrack-keys:

@@ -1,0 +1,71 @@
+@page
+@model PrintTrack.Server.Pages.Catalogs.IndexModel
+@{ ViewData["Title"] = "Catálogos"; }
+
+<h3 class="mb-3">Catálogos</h3>
+<p class="text-muted small">
+    <strong>Sedes</strong> se asignan a las claves de agente (todo lo que reporta esa clave queda en esa sede).
+    <strong>Áreas</strong> se asignan a los usuarios.
+</p>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">Sedes</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var s in Model.Sites)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>@s.Name @if (s.Code is { Length: > 0 }) { <span class="text-muted small">(@s.Code)</span> }
+                            <span class="text-muted small">· @s.AgentKeys.Count clave(s)</span></span>
+                        <form method="post" asp-page-handler="DeleteSite" asp-route-id="@s.Id"
+                              onsubmit="return confirm('¿Eliminar la sede? Las claves y trabajos quedan sin sede.');">
+                            <button class="btn btn-link btn-sm text-danger p-0">×</button>
+                        </form>
+                    </li>
+                }
+                @if (Model.Sites.Count == 0)
+                {
+                    <li class="list-group-item text-muted">Sin sedes.</li>
+                }
+            </ul>
+            <div class="card-body border-top">
+                <form method="post" asp-page-handler="AddSite" class="row g-2">
+                    <div class="col-7"><input asp-for="NewSite.Name" class="form-control form-control-sm" placeholder="Nombre de la sede" /></div>
+                    <div class="col-3"><input asp-for="NewSite.Code" class="form-control form-control-sm" placeholder="cód." /></div>
+                    <div class="col-2"><button class="btn btn-primary btn-sm w-100">+</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header">Áreas / Departamentos</div>
+            <ul class="list-group list-group-flush">
+                @foreach (var d in Model.Departments)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>@d.Name @if (d.Code is { Length: > 0 }) { <span class="text-muted small">(@d.Code)</span> }
+                            <span class="text-muted small">· @d.Users.Count usuario(s)</span></span>
+                        <form method="post" asp-page-handler="DeleteDept" asp-route-id="@d.Id"
+                              onsubmit="return confirm('¿Eliminar el área? Los usuarios quedan sin área.');">
+                            <button class="btn btn-link btn-sm text-danger p-0">×</button>
+                        </form>
+                    </li>
+                }
+                @if (Model.Departments.Count == 0)
+                {
+                    <li class="list-group-item text-muted">Sin áreas.</li>
+                }
+            </ul>
+            <div class="card-body border-top">
+                <form method="post" asp-page-handler="AddDept" class="row g-2">
+                    <div class="col-7"><input asp-for="NewDept.Name" class="form-control form-control-sm" placeholder="Nombre del área" /></div>
+                    <div class="col-3"><input asp-for="NewDept.Code" class="form-control form-control-sm" placeholder="cód." /></div>
+                    <div class="col-2"><button class="btn btn-primary btn-sm w-100">+</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
