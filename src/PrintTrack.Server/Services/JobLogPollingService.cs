@@ -76,7 +76,7 @@ public sealed class JobLogPollingService(
             return (0, fetchErr);
         }
 
-        var hadJobsBefore = await db.PrintJobs.AnyAsync(j => j.PrinterId == printerId && j.Source == JobSource.HpJobLog, ct);
+        var hadJobsBefore = await db.PrintJobs.AnyAsync(j => j.PrinterId == printerId, ct);
         var result = await importer.ImportAsync(printerId, csv, onlyPrintJobs: true, triggeredBy, ct);
 
         if (!result.Ok)

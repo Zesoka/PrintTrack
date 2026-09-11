@@ -66,16 +66,13 @@
                     <td class="text-truncate" style="max-width:220px" title="@j.DocumentName">@j.DocumentName</td>
                     <td class="small">@j.PrinterNameRaw</td>
                     <td class="small text-muted">@j.WorkstationName</td>
-                    @{ var imported = j.Source == PrintTrack.Server.Data.JobSource.HpJobLog; }
-                    <td class="text-end">@(imported ? "s/d" : j.Pages.ToString())</td>
-                    <td class="text-end">@(imported ? "s/d" : j.Copies.ToString())</td>
-                    <td class="text-end fw-semibold">@(imported ? "s/d" : j.Sheets.ToString())</td>
-                    <td class="small">@(imported ? "s/d" : Ui.ColorText(j.Color))</td>
-                    <td class="small">@(imported ? "s/d" : Ui.DuplexText(j.Duplex))</td>
-                    <td>
-                        <span class="badge bg-@Ui.StatusBadge(j.Status)">@Ui.StatusText(j.Status)</span>
-                        @if (imported) { <span class="badge bg-light text-muted" title="Importado del registro de la impresora">reg.</span> }
-                    </td>
+                    @{ var noPages = j.Pages == 0; var noSheets = j.Sheets == 0; }
+                    <td class="text-end">@(noPages ? "s/d" : j.Pages.ToString())</td>
+                    <td class="text-end">@j.Copies</td>
+                    <td class="text-end fw-semibold">@(noSheets ? "s/d" : j.Sheets.ToString())</td>
+                    <td class="small">@(j.Color == PrintTrack.Shared.ColorMode.Unknown ? "s/d" : Ui.ColorText(j.Color))</td>
+                    <td class="small">@(j.Duplex == PrintTrack.Shared.DuplexMode.Unknown ? "s/d" : Ui.DuplexText(j.Duplex))</td>
+                    <td><span class="badge bg-@Ui.StatusBadge(j.Status)">@Ui.StatusText(j.Status)</span></td>
                 </tr>
             }
             @if (Model.Jobs.Count == 0)

@@ -13,25 +13,6 @@ namespace PrintTrack.Server.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "AgentApiKeys",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    KeyHash = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
-                    Prefix = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    LastUsedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    LastUsedFromWorkstation = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AgentApiKeys", x => x.Id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "AspNetRoles",
                 columns: table => new
                 {
@@ -72,45 +53,33 @@ namespace PrintTrack.Server.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "EndUsers",
+                name: "Departments",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    NormalizedUserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    FullName = table.Column<string>(type: "text", nullable: true),
-                    Email = table.Column<string>(type: "text", nullable: true),
-                    Department = table.Column<string>(type: "text", nullable: true),
-                    IsBlocked = table.Column<bool>(type: "boolean", nullable: false),
-                    AutoCreated = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    LastSeenAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    Code = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_EndUsers", x => x.Id);
+                    table.PrimaryKey("PK_Departments", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Printers",
+                name: "Sites",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
-                    WorkstationName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
-                    ShareName = table.Column<string>(type: "text", nullable: true),
-                    Location = table.Column<string>(type: "text", nullable: true),
-                    IsTracked = table.Column<bool>(type: "boolean", nullable: false),
-                    IsDisabled = table.Column<bool>(type: "boolean", nullable: false),
-                    FirstSeenAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    LastSeenAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    Name = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    Code = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: true),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Printers", x => x.Id);
+                    table.PrimaryKey("PK_Sites", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -220,6 +189,146 @@ namespace PrintTrack.Server.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "EndUsers",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    UserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    NormalizedUserName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    FullName = table.Column<string>(type: "text", nullable: true),
+                    Email = table.Column<string>(type: "text", nullable: true),
+                    DepartmentId = table.Column<int>(type: "integer", nullable: true),
+                    AutoCreated = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    LastSeenAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_EndUsers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_EndUsers_Departments_DepartmentId",
+                        column: x => x.DepartmentId,
+                        principalTable: "Departments",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Printers",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    WorkstationName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    ShareName = table.Column<string>(type: "text", nullable: true),
+                    Location = table.Column<string>(type: "text", nullable: true),
+                    SiteId = table.Column<int>(type: "integer", nullable: true),
+                    IsTracked = table.Column<bool>(type: "boolean", nullable: false),
+                    FirstSeenAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    LastSeenAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Printers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Printers_Sites_SiteId",
+                        column: x => x.SiteId,
+                        principalTable: "Sites",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MeterReadings",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    PrinterId = table.Column<int>(type: "integer", nullable: false),
+                    TakenAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    Source = table.Column<int>(type: "integer", nullable: false),
+                    Total = table.Column<long>(type: "bigint", nullable: false),
+                    Mono = table.Column<long>(type: "bigint", nullable: true),
+                    Color = table.Column<long>(type: "bigint", nullable: true),
+                    Note = table.Column<string>(type: "text", nullable: true),
+                    CreatedBy = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MeterReadings", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_MeterReadings_Printers_PrinterId",
+                        column: x => x.PrinterId,
+                        principalTable: "Printers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PrinterJobLogConfigs",
+                columns: table => new
+                {
+                    PrinterId = table.Column<int>(type: "integer", nullable: false),
+                    Enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    BaseUrl = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    ReportPath = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    ExportFormatId = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
+                    Username = table.Column<string>(type: "text", nullable: true),
+                    Password = table.Column<string>(type: "text", nullable: true),
+                    LastPolledAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    LastError = table.Column<string>(type: "text", nullable: true),
+                    LastImported = table.Column<int>(type: "integer", nullable: false),
+                    LastResponseSnippet = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PrinterJobLogConfigs", x => x.PrinterId);
+                    table.ForeignKey(
+                        name: "FK_PrinterJobLogConfigs_Printers_PrinterId",
+                        column: x => x.PrinterId,
+                        principalTable: "Printers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PrinterMeterConfigs",
+                columns: table => new
+                {
+                    PrinterId = table.Column<int>(type: "integer", nullable: false),
+                    Enabled = table.Column<bool>(type: "boolean", nullable: false),
+                    Host = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    Port = table.Column<int>(type: "integer", nullable: false),
+                    Version = table.Column<int>(type: "integer", nullable: false),
+                    Community = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    SecurityName = table.Column<string>(type: "text", nullable: true),
+                    AuthProtocol = table.Column<string>(type: "text", nullable: true),
+                    AuthPassword = table.Column<string>(type: "text", nullable: true),
+                    PrivProtocol = table.Column<string>(type: "text", nullable: true),
+                    PrivPassword = table.Column<string>(type: "text", nullable: true),
+                    OidTotal = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    OidMono = table.Column<string>(type: "text", nullable: true),
+                    OidColor = table.Column<string>(type: "text", nullable: true),
+                    DeviceName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    DeviceDescr = table.Column<string>(type: "text", nullable: true),
+                    LastPolledAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    LastError = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PrinterMeterConfigs", x => x.PrinterId);
+                    table.ForeignKey(
+                        name: "FK_PrinterMeterConfigs_Printers_PrinterId",
+                        column: x => x.PrinterId,
+                        principalTable: "Printers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PrintJobs",
                 columns: table => new
                 {
@@ -231,6 +340,7 @@ namespace PrintTrack.Server.Migrations
                     PrinterId = table.Column<int>(type: "integer", nullable: false),
                     PrinterNameRaw = table.Column<string>(type: "text", nullable: false),
                     WorkstationName = table.Column<string>(type: "text", nullable: true),
+                    SiteId = table.Column<int>(type: "integer", nullable: true),
                     DocumentName = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
                     Pages = table.Column<int>(type: "integer", nullable: false),
                     Copies = table.Column<int>(type: "integer", nullable: false),
@@ -240,6 +350,7 @@ namespace PrintTrack.Server.Migrations
                     PaperSize = table.Column<string>(type: "text", nullable: true),
                     SizeBytes = table.Column<long>(type: "bigint", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
+                    ExternalId = table.Column<string>(type: "text", nullable: true),
                     SubmittedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     DecidedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     CompletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
@@ -260,13 +371,13 @@ namespace PrintTrack.Server.Migrations
                         principalTable: "Printers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_PrintJobs_Sites_SiteId",
+                        column: x => x.SiteId,
+                        principalTable: "Sites",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
                 });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AgentApiKeys_KeyHash",
-                table: "AgentApiKeys",
-                column: "KeyHash",
-                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
@@ -306,16 +417,37 @@ namespace PrintTrack.Server.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_Departments_Name",
+                table: "Departments",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_EndUsers_DepartmentId",
+                table: "EndUsers",
+                column: "DepartmentId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_EndUsers_NormalizedUserName",
                 table: "EndUsers",
                 column: "NormalizedUserName",
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_MeterReadings_PrinterId_TakenAt",
+                table: "MeterReadings",
+                columns: new[] { "PrinterId", "TakenAt" });
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Printers_Name_WorkstationName",
                 table: "Printers",
                 columns: new[] { "Name", "WorkstationName" },
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Printers_SiteId",
+                table: "Printers",
+                column: "SiteId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PrintJobs_EndUserId",
@@ -329,9 +461,16 @@ namespace PrintTrack.Server.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_PrintJobs_PrinterId",
+                name: "IX_PrintJobs_PrinterId_ExternalId",
                 table: "PrintJobs",
-                column: "PrinterId");
+                columns: new[] { "PrinterId", "ExternalId" },
+                unique: true,
+                filter: "\"ExternalId\" IS NOT NULL");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PrintJobs_SiteId",
+                table: "PrintJobs",
+                column: "SiteId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_PrintJobs_Status",
@@ -342,14 +481,17 @@ namespace PrintTrack.Server.Migrations
                 name: "IX_PrintJobs_SubmittedAt",
                 table: "PrintJobs",
                 column: "SubmittedAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Sites_Name",
+                table: "Sites",
+                column: "Name",
+                unique: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "AgentApiKeys");
-
             migrationBuilder.DropTable(
                 name: "AspNetRoleClaims");
 
@@ -366,6 +508,15 @@ namespace PrintTrack.Server.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "MeterReadings");
+
+            migrationBuilder.DropTable(
+                name: "PrinterJobLogConfigs");
+
+            migrationBuilder.DropTable(
+                name: "PrinterMeterConfigs");
+
+            migrationBuilder.DropTable(
                 name: "PrintJobs");
 
             migrationBuilder.DropTable(
@@ -379,6 +530,12 @@ namespace PrintTrack.Server.Migrations
 
             migrationBuilder.DropTable(
                 name: "Printers");
+
+            migrationBuilder.DropTable(
+                name: "Departments");
+
+            migrationBuilder.DropTable(
+                name: "Sites");
         }
     }
 }

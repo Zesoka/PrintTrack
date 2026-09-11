@@ -12,8 +12,8 @@ using PrintTrack.Server.Data;
 namespace PrintTrack.Server.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260910173653_SnmpMeters")]
-    partial class SnmpMeters
+    [Migration("20260911005530_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -224,53 +224,6 @@ namespace PrintTrack.Server.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("PrintTrack.Server.Data.AgentApiKey", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("KeyHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<DateTimeOffset?>("LastUsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LastUsedFromWorkstation")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Prefix")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<int?>("SiteId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("KeyHash")
-                        .IsUnique();
-
-                    b.HasIndex("SiteId");
-
-                    b.ToTable("AgentApiKeys");
-                });
-
             modelBuilder.Entity("PrintTrack.Server.Data.Department", b =>
                 {
                     b.Property<int>("Id")
@@ -321,9 +274,6 @@ namespace PrintTrack.Server.Migrations
 
                     b.Property<string>("FullName")
                         .HasColumnType("text");
-
-                    b.Property<bool>("IsBlocked")
-                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset?>("LastSeenAt")
                         .HasColumnType("timestamp with time zone");
@@ -425,6 +375,9 @@ namespace PrintTrack.Server.Migrations
                     b.Property<int>("EndUserId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ExternalId")
+                        .HasColumnType("text");
+
                     b.Property<string>("JobRef")
                         .IsRequired()
                         .HasColumnType("text");
@@ -471,13 +424,15 @@ namespace PrintTrack.Server.Migrations
                     b.HasIndex("JobRef")
                         .IsUnique();
 
-                    b.HasIndex("PrinterId");
-
                     b.HasIndex("SiteId");
 
                     b.HasIndex("Status");
 
                     b.HasIndex("SubmittedAt");
+
+                    b.HasIndex("PrinterId", "ExternalId")
+                        .IsUnique()
+                        .HasFilter("\"ExternalId\" IS NOT NULL");
 
                     b.ToTable("PrintJobs");
                 });
@@ -492,9 +447,6 @@ namespace PrintTrack.Server.Migrations
 
                     b.Property<DateTimeOffset>("FirstSeenAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDisabled")
-                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsTracked")
                         .HasColumnType("boolean");
@@ -513,16 +465,66 @@ namespace PrintTrack.Server.Migrations
                     b.Property<string>("ShareName")
                         .HasColumnType("text");
 
+                    b.Property<int?>("SiteId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("WorkstationName")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SiteId");
+
                     b.HasIndex("Name", "WorkstationName")
                         .IsUnique();
 
                     b.ToTable("Printers");
+                });
+
+            modelBuilder.Entity("PrintTrack.Server.Data.PrinterJobLogConfig", b =>
+                {
+                    b.Property<int>("PrinterId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("BaseUrl")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ExportFormatId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<int>("LastImported")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastPolledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastResponseSnippet")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Password")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReportPath")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Username")
+                        .HasColumnType("text");
+
+                    b.HasKey("PrinterId");
+
+                    b.ToTable("PrinterJobLogConfigs");
                 });
 
             modelBuilder.Entity("PrintTrack.Server.Data.PrinterMeterConfig", b =>
@@ -671,16 +673,6 @@ namespace PrintTrack.Server.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("PrintTrack.Server.Data.AgentApiKey", b =>
-                {
-                    b.HasOne("PrintTrack.Server.Data.Site", "Site")
-                        .WithMany("AgentKeys")
-                        .HasForeignKey("SiteId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Site");
-                });
-
             modelBuilder.Entity("PrintTrack.Server.Data.EndUser", b =>
                 {
                     b.HasOne("PrintTrack.Server.Data.Department", "Department")
@@ -728,6 +720,27 @@ namespace PrintTrack.Server.Migrations
                     b.Navigation("Site");
                 });
 
+            modelBuilder.Entity("PrintTrack.Server.Data.Printer", b =>
+                {
+                    b.HasOne("PrintTrack.Server.Data.Site", "Site")
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Site");
+                });
+
+            modelBuilder.Entity("PrintTrack.Server.Data.PrinterJobLogConfig", b =>
+                {
+                    b.HasOne("PrintTrack.Server.Data.Printer", "Printer")
+                        .WithOne()
+                        .HasForeignKey("PrintTrack.Server.Data.PrinterJobLogConfig", "PrinterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Printer");
+                });
+
             modelBuilder.Entity("PrintTrack.Server.Data.PrinterMeterConfig", b =>
                 {
                     b.HasOne("PrintTrack.Server.Data.Printer", "Printer")
@@ -756,8 +769,6 @@ namespace PrintTrack.Server.Migrations
 
             modelBuilder.Entity("PrintTrack.Server.Data.Site", b =>
                 {
-                    b.Navigation("AgentKeys");
-
                     b.Navigation("Jobs");
                 });
 #pragma warning restore 612, 618

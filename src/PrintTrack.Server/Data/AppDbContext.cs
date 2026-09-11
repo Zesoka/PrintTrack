@@ -9,7 +9,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<EndUser> EndUsers => Set<EndUser>();
     public DbSet<Printer> Printers => Set<Printer>();
     public DbSet<PrintJobRecord> PrintJobs => Set<PrintJobRecord>();
-    public DbSet<AgentApiKey> AgentApiKeys => Set<AgentApiKey>();
     public DbSet<Site> Sites => Set<Site>();
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<PrinterMeterConfig> PrinterMeterConfigs => Set<PrinterMeterConfig>();
@@ -66,15 +65,6 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.HasOne(x => x.Printer).WithMany(p => p.Jobs)
                 .HasForeignKey(x => x.PrinterId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Site).WithMany(s => s.Jobs)
-                .HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.SetNull);
-        });
-
-        b.Entity<AgentApiKey>(e =>
-        {
-            e.HasIndex(x => x.KeyHash).IsUnique();
-            e.Property(x => x.KeyHash).HasMaxLength(64);
-            e.Property(x => x.Prefix).HasMaxLength(16);
-            e.HasOne(x => x.Site).WithMany(s => s.AgentKeys)
                 .HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.SetNull);
         });
 

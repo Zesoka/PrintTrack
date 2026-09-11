@@ -1,8 +1,6 @@
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using PrintTrack.Server.Api;
 using PrintTrack.Server.Data;
 using PrintTrack.Server.Options;
 using PrintTrack.Server.Services;
@@ -33,13 +31,7 @@ builder.Services.AddIdentity<AdminUser, IdentityRole>(o =>
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
-builder.Services.AddAuthentication()
-    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthHandler>(ApiKeyDefaults.Scheme, _ => { });
-
-builder.Services.AddAuthorization(o =>
-    o.AddPolicy(ApiKeyDefaults.Policy, p => p
-        .AddAuthenticationSchemes(ApiKeyDefaults.Scheme)
-        .RequireAuthenticatedUser()));
+builder.Services.AddAuthorization();
 
 builder.Services.ConfigureApplicationCookie(o =>
 {
@@ -50,7 +42,6 @@ builder.Services.ConfigureApplicationCookie(o =>
     o.SlidingExpiration = true;
 });
 
-builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<HpJobLogImporter>();
 
 builder.Services.AddSingleton<SnmpMeterReader>();
@@ -82,7 +73,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapRazorPages();
-app.MapAgentApi();
 app.MapGet("/healthz", () => Results.Ok("ok")).AllowAnonymous();
 
 await DbSeeder.MigrateAndSeedAsync(app.Services);

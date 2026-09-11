@@ -12,9 +12,6 @@ public sealed class PrintTrackOptions
     public string SeedAdminEmail { get; set; } = "admin@local";
     public string SeedAdminPassword { get; set; } = "ChangeMe!123";
 
-    /// <summary>Plaintext bootstrap agent key seeded on first run (blank = none, create in UI).</summary>
-    public string? SeedAgentApiKey { get; set; }
-
     public MeterOptions Meter { get; set; } = new();
     public JobLogOptions JobLog { get; set; } = new();
 }

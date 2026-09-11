@@ -16,10 +16,9 @@
                 @foreach (var s in Model.Sites)
                 {
                     <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span>@s.Name @if (s.Code is { Length: > 0 }) { <span class="text-muted small">(@s.Code)</span> }
-                            <span class="text-muted small">· @s.AgentKeys.Count clave(s)</span></span>
+                        <span>@s.Name @if (s.Code is { Length: > 0 }) { <span class="text-muted small">(@s.Code)</span> }</span>
                         <form method="post" asp-page-handler="DeleteSite" asp-route-id="@s.Id"
-                              onsubmit="return confirm('¿Eliminar la sede? Las claves y trabajos quedan sin sede.');">
+                              onsubmit="return confirm('¿Eliminar la sede? Las impresoras y trabajos quedan sin sede.');">
                             <button class="btn btn-link btn-sm text-danger p-0">×</button>
                         </form>
                     </li>

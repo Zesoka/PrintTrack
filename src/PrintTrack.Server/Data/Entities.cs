@@ -9,7 +9,7 @@ public sealed class AdminUser : IdentityUser
     public string? DisplayName { get; set; }
 }
 
-/// <summary>A branch / location. Assigned to an agent key; every job that key reports inherits it.</summary>
+/// <summary>A branch / location. Assigned to a printer; every job from that printer's log inherits it.</summary>
 public sealed class Site
 {
     public int Id { get; set; }
@@ -17,7 +17,6 @@ public sealed class Site
     public string? Code { get; set; }
     public bool IsActive { get; set; } = true;
 
-    public List<AgentApiKey> AgentKeys { get; set; } = [];
     public List<PrintJobRecord> Jobs { get; set; } = [];
 }
 
@@ -48,9 +47,6 @@ public sealed class EndUser
     public int? DepartmentId { get; set; }
     public Department? Department { get; set; }
 
-    /// <summary>All printing denied for this user.</summary>
-    public bool IsBlocked { get; set; }
-
     /// <summary>Row was created automatically the first time this login printed.</summary>
     public bool AutoCreated { get; set; }
 
@@ -78,11 +74,8 @@ public sealed class Printer
     public int? SiteId { get; set; }
     public Site? Site { get; set; }
 
-    /// <summary>Record jobs sent here. If false the job is allowed but not logged.</summary>
+    /// <summary>Record jobs from this device's log. If false the device is kept but its jobs aren't imported.</summary>
     public bool IsTracked { get; set; } = true;
-
-    /// <summary>Deny every job sent here.</summary>
-    public bool IsDisabled { get; set; }
 
     public DateTimeOffset FirstSeenAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset LastSeenAt { get; set; } = DateTimeOffset.UtcNow;
@@ -104,7 +97,7 @@ public sealed class PrintJobRecord
     public string PrinterNameRaw { get; set; } = "";
     public string? WorkstationName { get; set; }
 
-    /// <summary>Branch the reporting agent belongs to (from its API key), stamped at authorize time.</summary>
+    /// <summary>Branch this job's printer sits at (copied from the printer when the job is imported).</summary>
     public int? SiteId { get; set; }
     public Site? Site { get; set; }
 
@@ -124,37 +117,11 @@ public sealed class PrintJobRecord
 
     public PrintJobStatus Status { get; set; } = PrintJobStatus.Pending;
 
-    /// <summary>Where this record came from — an agent, or the HP device job-log import.</summary>
-    public JobSource Source { get; set; } = JobSource.Agent;
-
-    /// <summary>Dedup key for imported records (null for agent jobs). Unique per printer.</summary>
+    /// <summary>Dedup key: hash of printer + timestamp + user + document. Unique per printer.</summary>
     public string? ExternalId { get; set; }
 
     public DateTimeOffset SubmittedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? DecidedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
     public string? DecisionMessage { get; set; }
-}
-
-public enum JobSource { Agent = 0, HpJobLog = 1 }
-
-public sealed class AgentApiKey
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = "";
-
-    /// <summary>SHA-256 (hex) of the full key. The plaintext is shown once at creation.</summary>
-    public string KeyHash { get; set; } = "";
-
-    /// <summary>First 8 chars of the plaintext, for identification in the UI.</summary>
-    public string Prefix { get; set; } = "";
-
-    /// <summary>The branch this key belongs to. Jobs reported with it inherit this site.</summary>
-    public int? SiteId { get; set; }
-    public Site? Site { get; set; }
-
-    public bool IsActive { get; set; } = true;
-    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-    public DateTimeOffset? LastUsedAt { get; set; }
-    public string? LastUsedFromWorkstation { get; set; }
 }

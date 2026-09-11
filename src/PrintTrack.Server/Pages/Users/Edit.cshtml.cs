@@ -22,7 +22,6 @@ public sealed class EditModel(AppDbContext db) : PageModel
         public string? FullName { get; set; }
         public string? Email { get; set; }
         public int? DepartmentId { get; set; }
-        public bool IsBlocked { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(int? id)
@@ -34,7 +33,7 @@ public sealed class EditModel(AppDbContext db) : PageModel
         Input = new InputModel
         {
             Id = u.Id, UserName = u.UserName, FullName = u.FullName,
-            Email = u.Email, DepartmentId = u.DepartmentId, IsBlocked = u.IsBlocked
+            Email = u.Email, DepartmentId = u.DepartmentId
         };
         return Page();
     }
@@ -64,7 +63,6 @@ public sealed class EditModel(AppDbContext db) : PageModel
         u.FullName = Input.FullName;
         u.Email = Input.Email;
         u.DepartmentId = Input.DepartmentId;
-        u.IsBlocked = Input.IsBlocked;
         u.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync();
 

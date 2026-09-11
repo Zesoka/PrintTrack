@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using PrintTrack.Server.Options;
-using PrintTrack.Server.Services;
 
 namespace PrintTrack.Server.Data;
 
@@ -37,20 +36,6 @@ public static class DbSeeder
             else
                 log.LogError("No se pudo crear el admin semilla: {Errors}",
                     string.Join("; ", res.Errors.Select(e => e.Description)));
-        }
-
-        if (!string.IsNullOrWhiteSpace(opt.SeedAgentApiKey) && !await db.AgentApiKeys.AnyAsync())
-        {
-            var plain = opt.SeedAgentApiKey.Trim();
-            db.AgentApiKeys.Add(new AgentApiKey
-            {
-                Name = "Clave semilla",
-                KeyHash = ApiKeyHashing.Hash(plain),
-                Prefix = plain.Length >= 8 ? plain[..8] : plain,
-                IsActive = true
-            });
-            await db.SaveChangesAsync();
-            log.LogWarning("Clave de agente semilla registrada (prefijo {Prefix}…).", plain[..Math.Min(8, plain.Length)]);
         }
     }
 

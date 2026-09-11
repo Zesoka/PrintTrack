@@ -20,7 +20,7 @@
             <thead><tr>
                 <th>Usuario</th><th>Nombre</th><th>Área</th>
                 <th class="text-end">Hojas (30 d)</th><th class="text-end">Trab. (30 d)</th>
-                <th>Estado</th><th></th>
+                <th></th><th></th>
             </tr></thead>
             <tbody>
             @foreach (var r in Model.Rows)
@@ -32,8 +32,6 @@
                     <td class="text-end">@r.Sheets30</td>
                     <td class="text-end">@r.Jobs30</td>
                     <td>
-                        @if (r.User.IsBlocked) { <span class="badge bg-danger">Bloqueado</span> }
-                        else { <span class="badge bg-success">Activo</span> }
                         @if (r.User.AutoCreated) { <span class="badge bg-light text-muted">auto</span> }
                     </td>
                     <td class="text-end"><a class="btn btn-outline-secondary btn-sm" href="/Users/Edit?id=@r.User.Id">Editar</a></td>

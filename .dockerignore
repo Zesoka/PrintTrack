@@ -4,5 +4,6 @@
 **/*.user
 .git/
 .gitignore
-deploy/
 README.md
+*.tar
+*.tar.gz

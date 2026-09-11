@@ -69,7 +69,7 @@ public sealed class IndexModel(AppDbContext db) : PageModel
 
     private async Task LoadAsync()
     {
-        Sites = await db.Sites.Include(s => s.AgentKeys).OrderBy(s => s.Name).ToListAsync();
+        Sites = await db.Sites.OrderBy(s => s.Name).ToListAsync();
         Departments = await db.Departments.Include(d => d.Users).OrderBy(d => d.Name).ToListAsync();
     }
 

@@ -18,7 +18,6 @@ public sealed class EditModel(AppDbContext db) : PageModel
         public string? Location { get; set; }
         public int? SiteId { get; set; }
         public bool IsTracked { get; set; } = true;
-        public bool IsDisabled { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(int id)
@@ -28,7 +27,7 @@ public sealed class EditModel(AppDbContext db) : PageModel
         Input = new InputModel
         {
             Id = p.Id, Name = p.Name, Location = p.Location, SiteId = p.SiteId,
-            IsTracked = p.IsTracked, IsDisabled = p.IsDisabled
+            IsTracked = p.IsTracked
         };
         await LoadSitesAsync();
         return Page();
@@ -43,7 +42,6 @@ public sealed class EditModel(AppDbContext db) : PageModel
         p.Location = Input.Location;
         p.SiteId = Input.SiteId;
         p.IsTracked = Input.IsTracked;
-        p.IsDisabled = Input.IsDisabled;
         await db.SaveChangesAsync();
 
         TempData["Msg"] = "Impresora actualizada.";

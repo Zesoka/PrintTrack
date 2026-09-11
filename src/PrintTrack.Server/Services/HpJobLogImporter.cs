@@ -125,7 +125,6 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
                 Color = ColorMode.Unknown,
                 Duplex = DuplexMode.Unknown,
                 Status = MapStatus(r.Status),
-                Source = JobSource.HpJobLog,
                 ExternalId = r.Ext,
                 SubmittedAt = r.When,
                 DecidedAt = r.When,
