@@ -279,11 +279,15 @@ public sealed class JobLogFetcher(ILogger<JobLogFetcher> logger)
         catch { /* best-effort session bootstrap */ }
     }
 
+    // Not just TLS-specific errors: a "connection refused" on 443 usually means the device simply
+    // doesn't speak HTTPS at all (HTTP-only EWS) — worth the same HTTP retry as a broken handshake.
     private static bool IsTlsFailure(string? err) =>
         err is not null && (err.Contains("SSL", StringComparison.OrdinalIgnoreCase)
             || err.Contains("TLS", StringComparison.OrdinalIgnoreCase)
             || err.Contains("handshake", StringComparison.OrdinalIgnoreCase)
-            || err.Contains("secure channel", StringComparison.OrdinalIgnoreCase));
+            || err.Contains("secure channel", StringComparison.OrdinalIgnoreCase)
+            || err.Contains("refused", StringComparison.OrdinalIgnoreCase)
+            || err.Contains("connection could be made", StringComparison.OrdinalIgnoreCase));
 
     private static async Task TryLoginAsync(HttpClient http, string authority, PrinterJobLogConfig cfg, CancellationToken ct)
     {
