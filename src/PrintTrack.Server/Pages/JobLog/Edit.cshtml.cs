@@ -58,7 +58,10 @@ public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppC
         if (!await SaveConfigAsync(requireUrl: true)) return Page();
 
         var (n, err) = await poller.PollOneAsync(Input.PrinterId, User.Identity?.Name ?? "admin", ct);
-        if (err is null) TempData["Msg"] = $"Configuración guardada. Traído: {n} trabajo(s) nuevo(s).";
+        // "Job Log no disponible ... importado por IPP: N" is the fallback working as designed —
+        // only red-flag it when neither the Job Log nor IPP produced anything.
+        if (err is null || err.Contains("importado por IPP:"))
+            TempData["Msg"] = $"Configuración guardada. Traído: {n} trabajo(s) nuevo(s). {err}".Trim();
         else TempData["Err"] = $"Config guardada. {err}";
         return RedirectToPage(new { id = Input.PrinterId });
     }

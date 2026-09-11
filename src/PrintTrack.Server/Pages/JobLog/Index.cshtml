@@ -35,7 +35,10 @@
                     <td class="small">@(r.Cfg?.LastPolledAt is { } t ? Ui.Ago(t) : "—")</td>
                     <td class="text-end">@(r.Cfg?.LastImported.ToString() ?? "—")</td>
                     <td class="small">
-                        @if (r.Cfg?.LastError is { Length: > 0 })
+                        @{ var usedIpp = r.Cfg?.LastError?.Contains("importado por IPP:") == true; }
+                        @if (usedIpp)
+                        { <span class="text-primary" title="@r.Cfg!.LastError">OK (vía IPP)</span> }
+                        else if (r.Cfg?.LastError is { Length: > 0 })
                         { <span class="text-danger" title="@r.Cfg.LastError">error</span> }
                         else if (r.Cfg?.LastPolledAt is not null) { <span class="text-success">OK</span> }
                         else { <span class="text-muted">—</span> }

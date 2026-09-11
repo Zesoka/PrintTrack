@@ -23,7 +23,9 @@ public sealed class IndexModel(AppDbContext db, JobLogPollingService poller) : P
     public async Task<IActionResult> OnPostPollOneAsync(int id, CancellationToken ct)
     {
         var (n, err) = await poller.PollOneAsync(id, User.Identity?.Name ?? "admin", ct);
-        if (err is null) TempData["Msg"] = $"Traído: {n} trabajo(s) nuevo(s).";
+        // "Job Log no disponible ... importado por IPP: N" is IPP doing its job, not a failure —
+        // only treat it as an error banner when neither path produced anything.
+        if (err is null || err.Contains("importado por IPP:")) TempData["Msg"] = $"Traído: {n} trabajo(s) nuevo(s). {err}".Trim();
         else TempData["Err"] = err;
         return RedirectToPage();
     }
