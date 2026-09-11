@@ -191,7 +191,11 @@ public sealed class IppClient(ILogger<IppClient> logger)
                     minute = data[offset + 5], second = data[offset + 6], deciSec = data[offset + 7];
                 var sign = data[offset + 8] == (byte)'-' ? -1 : 1;
                 var tzOffset = new TimeSpan(sign * data[offset + 9], sign * data[offset + 10], 0);
-                return new DateTimeOffset(year, month, day, hour, minute, second, tzOffset).AddMilliseconds(deciSec * 100);
+                // Devices report this in whatever offset their IPP stack happens to be set to
+                // (seen a factory-default -08:00 on one printer, unrelated to its EWS clock) —
+                // always normalize to UTC so it's safe to store regardless of the source offset.
+                var local = new DateTimeOffset(year, month, day, hour, minute, second, tzOffset).AddMilliseconds(deciSec * 100);
+                return local.ToUniversalTime();
             }
             catch { /* fall through to text/hex below */ }
         }

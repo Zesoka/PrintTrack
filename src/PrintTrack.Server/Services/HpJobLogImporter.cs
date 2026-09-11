@@ -86,7 +86,9 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
             if (jobId is not > 0 || string.IsNullOrWhiteSpace(userRaw) || string.IsNullOrWhiteSpace(doc) || sheets is not > 0)
                 continue;
 
-            var when = job.GetDateTimeOffset("date-time-at-completed") ?? DateTimeOffset.UtcNow;
+            // Belt-and-suspenders: Postgres timestamptz only accepts Offset=0, and we've already
+            // seen a device report a non-UTC offset here — normalize regardless of what IppClient did.
+            var when = (job.GetDateTimeOffset("date-time-at-completed") ?? DateTimeOffset.UtcNow).ToUniversalTime();
             var status = job.GetInt("job-state") switch
             {
                 7 => PrintJobStatus.Cancelled,
