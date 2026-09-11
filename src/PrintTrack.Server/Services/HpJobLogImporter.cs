@@ -63,6 +63,80 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
         return created.Id;
     }
 
+    /// <summary>
+    /// Import completed jobs straight from IPP (<see cref="IppClient.GetCompletedJobsAsync"/>) —
+    /// used when the device's Job Log HTML isn't reachable at all (e.g. requires an admin login we
+    /// don't have) but IPP itself answers without one, which some printers do even when others in
+    /// the same fleet don't. Real Pages/Sheets from the start; dedup by IPP's own job-id.
+    /// </summary>
+    public async Task<ImportResult> ImportFromIppAsync(
+        int printerId, List<IppClient.IppJob> jobs, string triggeredBy, CancellationToken ct)
+    {
+        var printer = await db.Printers.FirstOrDefaultAsync(p => p.Id == printerId, ct);
+        if (printer is null) return new ImportResult(0, 0, 0, 0, 0, "Impresora no encontrada.");
+
+        var rows = new List<(string User, string Doc, string Ext, DateTimeOffset When, int Pages, int Sheets, PrintJobStatus Status)>();
+        foreach (var job in jobs)
+        {
+            var jobId = job.GetInt("job-id");
+            var userRaw = job.Get("job-originating-user-name");
+            var doc = job.Get("job-name");
+            var pages = job.GetInt("job-impressions-completed");
+            var sheets = job.GetInt("job-media-sheets-completed") ?? pages;
+            if (jobId is not > 0 || string.IsNullOrWhiteSpace(userRaw) || string.IsNullOrWhiteSpace(doc) || sheets is not > 0)
+                continue;
+
+            var when = job.GetDateTimeOffset("date-time-at-completed") ?? DateTimeOffset.UtcNow;
+            var status = job.GetInt("job-state") switch
+            {
+                7 => PrintJobStatus.Cancelled,
+                8 => PrintJobStatus.Failed,
+                _ => PrintJobStatus.Printed
+            };
+            rows.Add((userRaw, doc, $"job{jobId}", when, pages ?? sheets.Value, sheets.Value, status));
+        }
+        if (rows.Count == 0) return new ImportResult(jobs.Count, 0, 0, 0, 0);
+
+        var exts = rows.Select(r => r.Ext).ToHashSet();
+        var known = (await db.PrintJobs
+                .Where(j => j.PrinterId == printerId && j.ExternalId != null && exts.Contains(j.ExternalId))
+                .Select(j => j.ExternalId!).ToListAsync(ct))
+            .ToHashSet();
+        var fresh = rows.Where(r => known.Add(r.Ext)).ToList();
+        var duplicates = rows.Count - fresh.Count;
+        if (fresh.Count == 0) return new ImportResult(jobs.Count, 0, duplicates, 0, 0);
+
+        foreach (var r in fresh)
+        {
+            db.PrintJobs.Add(new PrintJobRecord
+            {
+                JobRef = "ippimp:" + r.Ext,
+                EndUserId = await ResolveOrCreateUserAsync(r.User, ct),
+                UserNameRaw = r.User,
+                PrinterId = printerId,
+                PrinterNameRaw = printer.Name,
+                SiteId = printer.SiteId,
+                DocumentName = Truncate(r.Doc, 512),
+                Pages = r.Pages,
+                Copies = 1,
+                Sheets = r.Sheets,
+                Color = ColorMode.Unknown,
+                Duplex = DuplexMode.Unknown,
+                Status = r.Status,
+                ExternalId = r.Ext,
+                SubmittedAt = r.When,
+                DecidedAt = r.When,
+                CompletedAt = r.When,
+                DecisionMessage = "Fuente: IPP (Job Log no disponible)"
+            });
+        }
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("Import IPP printer={Printer} by={By}: {Imported} nuevos, {Dup} duplicados.",
+            printer.Name, triggeredBy, fresh.Count, duplicates);
+        return new ImportResult(jobs.Count, fresh.Count, duplicates, 0, 0);
+    }
+
     public async Task<ImportResult> ImportAsync(
         int printerId, string content, bool onlyPrintJobs, string triggeredBy, CancellationToken ct)
     {

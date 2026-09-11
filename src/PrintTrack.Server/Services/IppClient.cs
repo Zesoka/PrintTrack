@@ -19,6 +19,8 @@ public sealed class IppClient(ILogger<IppClient> logger)
         public Dictionary<string, List<object>> Attrs { get; } = new(StringComparer.OrdinalIgnoreCase);
         public string? Get(string name) => Attrs.TryGetValue(name, out var l) && l.Count > 0 ? l[0]?.ToString() : null;
         public int? GetInt(string name) => Attrs.TryGetValue(name, out var l) && l.Count > 0 && l[0] is int i ? i : null;
+        public DateTimeOffset? GetDateTimeOffset(string name) =>
+            Attrs.TryGetValue(name, out var l) && l.Count > 0 && l[0] is DateTimeOffset d ? d : null;
     }
 
     /// <summary>Tries each common IPP resource path until one answers with a parseable IPP response.</summary>
@@ -110,7 +112,7 @@ public sealed class IppClient(ILogger<IppClient> logger)
         foreach (var n in new[]
                  {
                      "job-name", "job-originating-user-name", "job-impressions-completed",
-                     "job-media-sheets-completed", "job-state", "time-at-completed"
+                     "job-media-sheets-completed", "job-state", "time-at-completed", "date-time-at-completed"
                  })
             WAttr(0x44, null, Encoding.UTF8.GetBytes(n));
         WByte(0x03);                        // end-of-attributes-tag
@@ -176,6 +178,19 @@ public sealed class IppClient(ILogger<IppClient> logger)
                 : 0;
         if (tag == 0x22) return len == 1 && data[offset] != 0;   // boolean
         if (tag is 0x10 or 0x12 or 0x13) return "";               // unsupported/unknown/no-value
+        if (tag == 0x31 && len == 11)   // dateTime (RFC 2579): year(2) mo day hr min sec decisec dir hrOff minOff
+        {
+            try
+            {
+                int year = (data[offset] << 8) | data[offset + 1];
+                int month = data[offset + 2], day = data[offset + 3], hour = data[offset + 4],
+                    minute = data[offset + 5], second = data[offset + 6], deciSec = data[offset + 7];
+                var sign = data[offset + 8] == (byte)'-' ? -1 : 1;
+                var tzOffset = new TimeSpan(sign * data[offset + 9], sign * data[offset + 10], 0);
+                return new DateTimeOffset(year, month, day, hour, minute, second, tzOffset).AddMilliseconds(deciSec * 100);
+            }
+            catch { /* fall through to text/hex below */ }
+        }
         if (tag is 0x35 or 0x36)   // textWithLanguage / nameWithLanguage: 2B langLen+lang, 2B textLen+text
         {
             try

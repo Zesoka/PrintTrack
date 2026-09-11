@@ -72,10 +72,24 @@ public sealed class JobLogPollingService(
         cfg.LastResponseSnippet = snippet is { Length: > 0 } ? snippet[..Math.Min(snippet.Length, 70000)] : null;
         if (csv is null)
         {
-            cfg.LastError = fetchErr;
+            // Job Log HTML isn't reachable (e.g. this device demands an admin login we don't have).
+            // Some printers still answer IPP without one — fall back to importing straight from
+            // there so this printer isn't left completely unaudited.
+            var (ippJobs, ippErr, _) = await ipp.GetCompletedJobsAsync(
+                Uri.TryCreate(cfg.BaseUrl, UriKind.Absolute, out var bu) ? bu.Host : "", 631, limit: 50, _opt.TimeoutSeconds, ct);
+            if (ippJobs is not null)
+            {
+                var ippResult = await importer.ImportFromIppAsync(printerId, ippJobs, triggeredBy, ct);
+                cfg.LastImported = ippResult.Imported;
+                cfg.LastError = $"Job Log no disponible ({fetchErr}) — importado por IPP: {ippResult.Imported} trabajo(s) nuevo(s).";
+                await db.SaveChangesAsync(ct);
+                return (ippResult.Imported, cfg.LastError);
+            }
+
+            cfg.LastError = ippErr is null ? fetchErr : $"{fetchErr} · IPP: {ippErr}";
             cfg.LastImported = 0;
             await db.SaveChangesAsync(ct);
-            return (0, fetchErr);
+            return (0, cfg.LastError);
         }
 
         var hadJobsBefore = await db.PrintJobs.AnyAsync(j => j.PrinterId == printerId, ct);
