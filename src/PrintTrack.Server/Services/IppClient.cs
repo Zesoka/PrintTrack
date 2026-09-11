@@ -27,6 +27,9 @@ public sealed class IppClient(ILogger<IppClient> logger)
     public async Task<(List<IppJob>? Jobs, string? Error, string Diag)> GetCompletedJobsAsync(
         string host, int port, int limit, int timeoutSec, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(host))
+            return (null, "Sin host de impresora (URL base vacía o inválida).", "");
+
         using var handler = new SocketsHttpHandler
         {
             SslOptions = new SslClientAuthenticationOptions { RemoteCertificateValidationCallback = (_, _, _, _) => true }
@@ -36,10 +39,10 @@ public sealed class IppClient(ILogger<IppClient> logger)
 
         foreach (var path in CommonPaths)
         {
-            var httpUri = new Uri($"http://{host}:{port}{path}");
-            var printerUri = $"ipp://{host}{(port == 631 ? "" : ":" + port)}{path}";
             try
             {
+                var httpUri = new Uri($"http://{host}:{port}{path}");
+                var printerUri = $"ipp://{host}{(port == 631 ? "" : ":" + port)}{path}";
                 var reqBytes = BuildGetJobsRequest(printerUri, limit);
                 using var content = new ByteArrayContent(reqBytes);
                 content.Headers.Add("Content-Type", "application/ipp");
@@ -65,7 +68,8 @@ public sealed class IppClient(ILogger<IppClient> logger)
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                diag.Append("POST ").Append(httpUri).Append(" -> ").Append(ex.Message).Append('\n');
+                diag.Append("POST http://").Append(host).Append(':').Append(port).Append(path)
+                    .Append(" -> ").Append(ex.Message).Append('\n');
             }
         }
         logger.LogDebug("IPP Get-Jobs sin respuesta usable contra {Host}:{Port}.", host, port);
