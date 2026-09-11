@@ -1,0 +1,93 @@
+@page
+@model PrintTrack.Server.Pages.Discovery.IndexModel
+@{ ViewData["Title"] = "Descubrir impresoras"; }
+
+<h3 class="mb-1">Descubrir impresoras</h3>
+<p class="text-muted small">
+    Barrido por SNMP desde el propio servidor — <strong>no instala nada en ningún lado</strong>.
+    Le pregunta a cada IP del rango si es una impresora y, si contesta, la deja lista para agregar
+    con un clic (crea la impresora + su config de Contadores y de Job Log de una sola vez).
+</p>
+
+<div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+<form method="post">
+    <div class="card shadow-sm mb-3"><div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Rango (CIDR)</label>
+                <input asp-for="Cidr" class="form-control font-monospace" placeholder="192.168.30.0/24" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Community SNMP</label>
+                <input asp-for="Community" class="form-control font-monospace" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Sede por defecto</label>
+                <select asp-for="DefaultSiteId" class="form-select">
+                    <option value="">— sin asignar —</option>
+                    @foreach (var s in Model.Sites)
+                    {
+                        <option value="@s.Id">@s.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100" asp-page-handler="Scan">Escanear</button>
+            </div>
+        </div>
+        <div class="form-text mt-1">Hasta /16, tope de 1024 hosts por barrido. Repetí por cada subred/sede.</div>
+    </div></div>
+
+    @if (Model.Scanned && Model.Rows.Count > 0)
+    {
+        <div class="card shadow-sm">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <span>@Model.Rows.Count encontrada(s) — @Model.Rows.Count(r => !r.AlreadyExists) nueva(s)</span>
+                <button class="btn btn-success btn-sm" asp-page-handler="Add">Agregar seleccionadas</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr>
+                        <th></th><th>IP</th><th>Hostname (SNMP)</th><th>Descripción</th>
+                        <th class="text-end">Páginas</th><th>Nombre a usar</th><th>Sede</th><th>Estado</th>
+                    </tr></thead>
+                    <tbody>
+                    @for (var i = 0; i < Model.Rows.Count; i++)
+                    {
+                        var r = Model.Rows[i];
+                        <tr class="@(r.AlreadyExists ? "text-muted" : "")">
+                            <td>
+                                <input type="hidden" asp-for="Rows[i].Ip" />
+                                <input type="hidden" asp-for="Rows[i].Hostname" />
+                                <input type="hidden" asp-for="Rows[i].Descr" />
+                                <input type="hidden" asp-for="Rows[i].Pages" />
+                                <input type="hidden" asp-for="Rows[i].AlreadyExists" />
+                                <input type="checkbox" asp-for="Rows[i].Selected" disabled="@r.AlreadyExists" />
+                            </td>
+                            <td class="font-monospace">@r.Ip</td>
+                            <td class="small">@r.Hostname</td>
+                            <td class="small">@r.Descr</td>
+                            <td class="text-end">@(r.Pages?.ToString("N0") ?? "—")</td>
+                            <td><input asp-for="Rows[i].Name" class="form-control form-control-sm" disabled="@r.AlreadyExists" /></td>
+                            <td>
+                                <select asp-for="Rows[i].SiteId" class="form-select form-select-sm" disabled="@r.AlreadyExists">
+                                    <option value="">—</option>
+                                    @foreach (var s in Model.Sites)
+                                    {
+                                        <option value="@s.Id">@s.Name</option>
+                                    }
+                                </select>
+                            </td>
+                            <td class="small">
+                                @if (r.AlreadyExists) { <span class="text-muted">ya existe: @r.ExistingPrinterName</span> }
+                                else { <span class="text-success">nueva</span> }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</form>

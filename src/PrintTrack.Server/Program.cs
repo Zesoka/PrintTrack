@@ -46,6 +46,7 @@ builder.Services.AddScoped<HpJobLogImporter>();
 
 builder.Services.AddSingleton<SnmpMeterReader>();
 builder.Services.AddSingleton<MeterPollingService>();
+builder.Services.AddSingleton<NetworkDiscoveryService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MeterPollingService>());
 
 builder.Services.AddSingleton<JobLogFetcher>();
