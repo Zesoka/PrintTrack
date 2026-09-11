@@ -44,10 +44,16 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
         int iType = FindCol(header, "tipo", "job type", "type");
         int iStatus = FindCol(header, "estado", "result", "status");
         int iDate = FindCol(header, "fecha", "time", "date");
+        // Optional — only present when the row was enriched from the device's job Details page.
+        int iCopies = FindCol(header, "copias", "copies");
+        int iSides = FindCol(header, "caras", "sides", "duplex");
+        int iColor = FindCol(header, "color");
+        int iPaperSize = FindCol(header, "tama", "size");
         if (iUser < 0 || iDoc < 0 || iDate < 0)
             return new ImportResult(0, 0, 0, 0, 0, "No se reconocen las columnas (falta Usuario / Nombre trab. / Fecha).");
 
-        var rows = new List<(string User, string Doc, string Type, string Status, DateTimeOffset When, string Ext)>();
+        var rows = new List<(string User, string Doc, string Type, string Status, DateTimeOffset When, string Ext,
+            string Copies, string Sides, string Color, string PaperSize)>();
         int errors = 0, skippedType = 0;
 
         for (var li = 1; li < lines.Count; li++)
@@ -63,7 +69,8 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
             var user = Get(f, iUser).Trim();
             var doc = Get(f, iDoc).Trim();
             var ext = ExternalId(printerId, when, user, doc);
-            rows.Add((user, doc, type, Get(f, iStatus), when, ext));
+            rows.Add((user, doc, type, Get(f, iStatus), when, ext,
+                Get(f, iCopies), Get(f, iSides), Get(f, iColor), Get(f, iPaperSize)));
         }
 
         if (rows.Count == 0)
@@ -119,11 +126,12 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
                 PrinterNameRaw = printer.Name,
                 SiteId = printer.SiteId,
                 DocumentName = Truncate(string.IsNullOrWhiteSpace(r.Doc) ? "(sin nombre)" : r.Doc, 512),
-                Pages = 0,
-                Copies = 1,
+                Pages = 0,                       // el registro del equipo no trae páginas
+                Copies = ParseCopies(r.Copies),
                 Sheets = 0,
-                Color = ColorMode.Unknown,
-                Duplex = DuplexMode.Unknown,
+                Color = ParseColor(r.Color),
+                Duplex = ParseDuplex(r.Sides),
+                PaperSize = string.IsNullOrWhiteSpace(r.PaperSize) ? null : Truncate(r.PaperSize, 64),
                 Status = MapStatus(r.Status),
                 ExternalId = r.Ext,
                 SubmittedAt = r.When,
@@ -138,6 +146,29 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
             printer.Name, triggeredBy, fresh.Count, duplicates, skippedType, errors);
 
         return new ImportResult(lines.Count - 1, fresh.Count, duplicates, skippedType, errors);
+    }
+
+    private static int ParseCopies(string raw) =>
+        int.TryParse(raw?.Trim(), out var n) && n > 0 ? n : 1;
+
+    /// <summary>The device's Details page says "1 cara" / "2 caras" (or English "1-Sided" / "2-Sided").</summary>
+    private static DuplexMode ParseDuplex(string? raw)
+    {
+        var t = (raw ?? "").ToLowerInvariant();
+        if (t.Length == 0) return DuplexMode.Unknown;
+        if (t.Contains('2') || t.Contains("duplex") || t.Contains("doble")) return DuplexMode.Duplex;
+        if (t.Contains('1') || t.Contains("simplex") || t.Contains("una cara")) return DuplexMode.Simplex;
+        return DuplexMode.Unknown;
+    }
+
+    private static ColorMode ParseColor(string? raw)
+    {
+        var t = (raw ?? "").ToLowerInvariant();
+        if (t.Length == 0) return ColorMode.Unknown;
+        if (t.Contains("mono") || t.Contains("gris") || t.Contains("gray") || t.Contains("negro") || t.Contains("black"))
+            return ColorMode.Grayscale;
+        if (t.Contains("color")) return ColorMode.Color;
+        return ColorMode.Unknown;
     }
 
     private static bool IsPrintType(string type)

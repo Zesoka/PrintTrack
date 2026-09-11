@@ -114,6 +114,8 @@ public sealed class JobLogFetcher(ILogger<JobLogFetcher> logger)
             if (rows.Count == 0)
                 return (null, "El registro de trabajos del equipo está vacío.", diag.ToString());
 
+            await EnrichPrintDetailsAsync(http, authority, rows, diag, ct);
+
             return (BuildCsv(rows), null, null);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
@@ -126,7 +128,13 @@ public sealed class JobLogFetcher(ILogger<JobLogFetcher> logger)
         finally { handler.Dispose(); }
     }
 
-    private sealed record JobRow(string User, string Doc, string Type, string Status, string Date);
+    private sealed record JobRow(string User, string Doc, string Type, string Status, string Date, string? DeviceId)
+    {
+        public string? Copies { get; set; }
+        public string? Sides { get; set; }
+        public string? Color { get; set; }
+        public string? PaperSize { get; set; }
+    }
 
     /// <summary>Parse <c>#JobLogTable</c>. Returns null if the table isn't there at all.</summary>
     private static async Task<List<JobRow>?> ParseJobLogTableAsync(string html, Uri pageUrl)
@@ -154,13 +162,75 @@ public sealed class JobLogFetcher(ILogger<JobLogFetcher> logger)
             var status = Cell("JobLogStatus_", 3);
             var date = Cell("JobLogDate_", 4);
             var type = TypeFromRowClass(tr.ClassName);
+            var deviceId = tr.QuerySelector("input[type='radio']")?.GetAttribute("value");
 
             if (date.Length == 0 && user.Length == 0 && doc0.Length == 0) continue;
             if (string.Equals(user, "Guest", StringComparison.OrdinalIgnoreCase)) user = "Invitado";
-            rows.Add(new JobRow(user, doc0, type, status, date));
+            rows.Add(new JobRow(user, doc0, type, status, date, deviceId));
         }
         return rows;
     }
+
+    /// <summary>
+    /// For each print job, fetch <c>JobLogReportDetails/Index?id=&lt;rowGuid&gt;</c> — a read-only
+    /// "Propiedad/Valor" table (<c>#JobDetails</c>) that has real Copias/Caras/Color (no page count
+    /// anywhere on this device, confirmed). Best-effort: a failed detail fetch just leaves that
+    /// row's extra fields blank, it never fails the whole pull.
+    /// </summary>
+    private static async Task EnrichPrintDetailsAsync(
+        HttpClient http, string authority, List<JobRow> rows, StringBuilder diag, CancellationToken ct)
+    {
+        foreach (var row in rows)
+        {
+            if (!row.Type.Equals("Print", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(row.DeviceId))
+                continue;
+            try
+            {
+                var url = new Uri($"{authority}/hp/device/JobLogReportDetails/Index?id={row.DeviceId}" +
+                    "&StepBackController=JobLogReport&StepBackAction=Edit&StepBackAnchor=JobLogReportViewSectionId&jsAnchor=JobLogReportViewSectionId");
+                using var resp = await http.GetAsync(url, ct);
+                var html = Decode(await resp.Content.ReadAsByteArrayAsync(ct));
+                if (!resp.IsSuccessStatusCode) continue;
+
+                var props = await ParseDetailPropsAsync(html, url);
+                if (props is null) continue;
+                row.Copies = FindProp(props, "copias", "copies");
+                row.Sides = FindProp(props, "caras", "sides", "duplex");
+                row.Color = FindProp(props, "color");
+                row.PaperSize = FindProp(props, "tam", "size", "salida", "output");
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                diag.Append("Detalle de ").Append(row.DeviceId).Append(" falló: ").Append(ex.Message).Append('\n');
+            }
+        }
+    }
+
+    /// <summary>The <c>#JobDetails</c> table on JobLogReportDetails is a plain 2-column
+    /// label/value table — read every row as-is, tolerant of whatever labels the device uses.</summary>
+    private static async Task<Dictionary<string, string>?> ParseDetailPropsAsync(string html, Uri pageUrl)
+    {
+        var ctx = BrowsingContext.New(Configuration.Default);
+        using var doc = await ctx.OpenAsync(r => r.Content(html).Address(pageUrl.ToString()));
+
+        var table = doc.QuerySelector("table#JobDetails");
+        if (table is null) return null;
+
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var tr in table.QuerySelectorAll("tbody > tr"))
+        {
+            var cells = tr.QuerySelectorAll("td").ToList();
+            if (cells.Count != 2) continue;
+            var label = cells[0].TextContent.Trim().TrimEnd(':').Trim();
+            var value = cells[1].TextContent.Trim();
+            if (label.Length > 0) map[label] = value;
+        }
+        return map.Count > 0 ? map : null;
+    }
+
+    private static string? FindProp(Dictionary<string, string> map, params string[] needles) =>
+        map.FirstOrDefault(kv => needles.Any(n => kv.Key.Contains(n, StringComparison.OrdinalIgnoreCase))).Value;
 
     /// <summary>HP tags each <c>&lt;tr&gt;</c> with a job-type class (e.g. <c>PrintJobTicket</c>).</summary>
     private static string TypeFromRowClass(string? cls)
@@ -177,14 +247,17 @@ public sealed class JobLogFetcher(ILogger<JobLogFetcher> logger)
         return i > 0 ? c[..i] : (c.Length > 0 ? c : "Otro");
     }
 
-    /// <summary>Emit the CSV shape <see cref="HpJobLogImporter"/> already parses and dedups.</summary>
+    /// <summary>Emit the CSV shape <see cref="HpJobLogImporter"/> already parses and dedups, plus the
+    /// Copias/Caras/Color/Tamaño columns filled in for print jobs by <see cref="EnrichPrintDetailsAsync"/>.</summary>
     private static string BuildCsv(IEnumerable<JobRow> rows)
     {
         var sb = new StringBuilder();
-        sb.Append("Usuario,Nombre trab.,Tipo,Estado,Fecha/Hora\n");
+        sb.Append("Usuario,Nombre trab.,Tipo,Estado,Fecha/Hora,Copias,Caras,Color,Tamaño\n");
         foreach (var r in rows)
             sb.Append(Q(r.User)).Append(',').Append(Q(r.Doc)).Append(',').Append(Q(r.Type)).Append(',')
-              .Append(Q(r.Status)).Append(',').Append(Q(r.Date)).Append('\n');
+              .Append(Q(r.Status)).Append(',').Append(Q(r.Date)).Append(',')
+              .Append(Q(r.Copies ?? "")).Append(',').Append(Q(r.Sides ?? "")).Append(',')
+              .Append(Q(r.Color ?? "")).Append(',').Append(Q(r.PaperSize ?? "")).Append('\n');
         return sb.ToString();
 
         static string Q(string s)
