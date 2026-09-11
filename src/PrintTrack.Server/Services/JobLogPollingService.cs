@@ -9,6 +9,7 @@ namespace PrintTrack.Server.Services;
 public sealed class JobLogPollingService(
     IServiceProvider sp,
     JobLogFetcher fetcher,
+    IppClient ipp,
     IOptions<PrintTrackOptions> options,
     ILogger<JobLogPollingService> logger) : BackgroundService
 {
@@ -94,7 +95,58 @@ public sealed class JobLogPollingService(
                 ? "Posible hueco entre lecturas: bajá PrintTrack:JobLog:PollMinutes."
                 : null;
         }
+
+        // Best-effort: back-fill real Páginas/Hojas via IPP (Get-Jobs) on whatever this printer's
+        // Job Log just imported (or imported earlier) with no page data yet. Never creates rows —
+        // only updates existing ones — so it can't duplicate what the Job Log scrape already added.
+        var (ippUpdated, ippNote) = await EnrichPagesFromIppAsync(db, cfg, printerId, ct);
+        if (ippUpdated > 0)
+            logger.LogInformation("IPP: {Updated} trabajo(s) de la impresora {PrinterId} completados con páginas/hojas reales.", ippUpdated, printerId);
+        if (ippNote is not null && cfg.LastError is null)
+            cfg.LastError = ippNote;
+
         await db.SaveChangesAsync(ct);
         return (result.Imported, cfg.LastError);
+    }
+
+    /// <summary>
+    /// Ask the printer's IPP endpoint (port 631) for completed jobs and use them to fill in the
+    /// real <c>Pages</c>/<c>Sheets</c> of already-imported jobs (matched by printer + normalized
+    /// user + exact document name, among rows still at <c>Sheets == 0</c> from the last week).
+    /// HP's Job Log HTML never exposes a page count; IPP's <c>job-impressions-completed</c> /
+    /// <c>job-media-sheets-completed</c> does.
+    /// </summary>
+    private async Task<(int Updated, string? Note)> EnrichPagesFromIppAsync(
+        AppDbContext db, PrinterJobLogConfig cfg, int printerId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(cfg.BaseUrl) || !Uri.TryCreate(cfg.BaseUrl, UriKind.Absolute, out var u))
+            return (0, null);
+
+        var (jobs, err, _) = await ipp.GetCompletedJobsAsync(u.Host, 631, limit: 50, timeoutSec: 15, ct);
+        if (jobs is null) return (0, err is null ? null : $"IPP: {err}");
+
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-7);
+        var updated = 0;
+        foreach (var job in jobs)
+        {
+            var userRaw = job.Get("job-originating-user-name");
+            var doc = job.Get("job-name");
+            var pages = job.GetInt("job-impressions-completed");
+            var sheets = job.GetInt("job-media-sheets-completed") ?? pages;
+            if (string.IsNullOrWhiteSpace(userRaw) || string.IsNullOrWhiteSpace(doc) || sheets is not > 0) continue;
+
+            var norm = Naming.NormalizeUser(userRaw);
+            var candidates = await db.PrintJobs
+                .Where(j => j.PrinterId == printerId && j.Sheets == 0 && j.DocumentName == doc && j.SubmittedAt >= cutoff)
+                .OrderByDescending(j => j.SubmittedAt)
+                .ToListAsync(ct);
+            var match = candidates.FirstOrDefault(j => Naming.NormalizeUser(j.UserNameRaw) == norm) ?? candidates.FirstOrDefault();
+            if (match is null) continue;
+
+            match.Pages = pages ?? sheets.Value;
+            match.Sheets = sheets.Value;
+            updated++;
+        }
+        return (updated, null);
     }
 }
