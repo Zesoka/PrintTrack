@@ -76,7 +76,7 @@ public sealed class JobLogPollingService(
             // Some printers still answer IPP without one — fall back to importing straight from
             // there so this printer isn't left completely unaudited.
             var (ippJobs, ippErr, _) = await ipp.GetCompletedJobsAsync(
-                Uri.TryCreate(cfg.BaseUrl, UriKind.Absolute, out var bu) ? bu.Host : "", 631, limit: 50, _opt.TimeoutSeconds, ct);
+                Uri.TryCreate(cfg.BaseUrl, UriKind.Absolute, out var bu) ? bu.Host : "", 631, limit: 500, _opt.TimeoutSeconds, ct);
             if (ippJobs is not null)
             {
                 var ippResult = await importer.ImportFromIppAsync(printerId, ippJobs, triggeredBy, ct);
@@ -143,7 +143,7 @@ public sealed class JobLogPollingService(
         if (string.IsNullOrWhiteSpace(cfg.BaseUrl) || !Uri.TryCreate(cfg.BaseUrl, UriKind.Absolute, out var u))
             return (0, null);
 
-        var (jobs, err, _) = await ipp.GetCompletedJobsAsync(u.Host, 631, limit: 50, timeoutSec: 15, ct);
+        var (jobs, err, _) = await ipp.GetCompletedJobsAsync(u.Host, 631, limit: 500, timeoutSec: 15, ct);
         if (jobs is null) return (0, err is null ? null : $"IPP: {err}");
 
         var cutoff = DateTimeOffset.UtcNow.AddDays(-7);

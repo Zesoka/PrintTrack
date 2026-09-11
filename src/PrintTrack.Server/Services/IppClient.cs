@@ -64,7 +64,19 @@ public sealed class IppClient(ILogger<IppClient> logger)
                 diag.Append('\n');
 
                 if (parseErr is null && jobs is not null && (status is 0x0000 or 0x0001 or 0x0002 || jobs.Count > 0))
+                {
+                    if (jobs.Count > 0)
+                    {
+                        var ids = jobs.Select(j => j.GetInt("job-id")).Where(i => i.HasValue).Select(i => i!.Value).ToList();
+                        var dates = jobs.Select(j => j.GetDateTimeOffset("date-time-at-completed")).Where(d => d.HasValue).Select(d => d!.Value).ToList();
+                        diag.Append("  Ventana: job-id ")
+                            .Append(ids.Count > 0 ? $"{ids.Min()}-{ids.Max()}" : "?")
+                            .Append(" · fechas ")
+                            .Append(dates.Count > 0 ? $"{dates.Min():dd/MM HH:mm}–{dates.Max():dd/MM HH:mm} UTC" : "?")
+                            .Append('\n');
+                    }
                     return (jobs, null, diag.ToString());
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

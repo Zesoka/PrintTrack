@@ -77,7 +77,7 @@ public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppC
             return Page();
         }
 
-        var (jobs, err, diag) = await ipp.GetCompletedJobsAsync(u.Host, 631, limit: 20, timeoutSec: 15, ct);
+        var (jobs, err, diag) = await ipp.GetCompletedJobsAsync(u.Host, 631, limit: 200, timeoutSec: 15, ct);
         IppJobs = jobs;
         IppError = err;
         IppDiag = diag;
