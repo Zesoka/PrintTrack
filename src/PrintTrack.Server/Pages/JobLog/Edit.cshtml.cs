@@ -6,10 +6,14 @@ using PrintTrack.Server.Services;
 
 namespace PrintTrack.Server.Pages.JobLog;
 
-public sealed class EditModel(AppDbContext db, JobLogPollingService poller) : PageModel
+public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppClient ipp) : PageModel
 {
     public Printer Printer { get; private set; } = null!;
     public PrinterJobLogConfig? Cfg { get; private set; }
+
+    public List<IppClient.IppJob>? IppJobs { get; private set; }
+    public string? IppDiag { get; private set; }
+    public string? IppError { get; private set; }
 
     [BindProperty] public InputModel Input { get; set; } = new();
 
@@ -57,6 +61,27 @@ public sealed class EditModel(AppDbContext db, JobLogPollingService poller) : Pa
         if (err is null) TempData["Msg"] = $"Configuración guardada. Traído: {n} trabajo(s) nuevo(s).";
         else TempData["Err"] = $"Config guardada. {err}";
         return RedirectToPage(new { id = Input.PrinterId });
+    }
+
+    /// <summary>Diagnostic-only: ask the printer's IPP endpoint (port 631) for completed jobs —
+    /// checks whether it exposes job-impressions-completed / job-media-sheets-completed (real page
+    /// counts) without needing EWS admin login. Doesn't save/import anything.</summary>
+    public async Task<IActionResult> OnPostTestIppAsync(CancellationToken ct)
+    {
+        if (!await LoadAsync(Input.PrinterId)) return NotFound();
+
+        var baseUrl = string.IsNullOrWhiteSpace(Input.BaseUrl) ? Cfg?.BaseUrl : Input.BaseUrl;
+        if (string.IsNullOrWhiteSpace(baseUrl) || !Uri.TryCreate(baseUrl.Trim(), UriKind.Absolute, out var u))
+        {
+            IppError = "Cargá primero la URL base del equipo arriba.";
+            return Page();
+        }
+
+        var (jobs, err, diag) = await ipp.GetCompletedJobsAsync(u.Host, 631, limit: 20, timeoutSec: 15, ct);
+        IppJobs = jobs;
+        IppError = err;
+        IppDiag = diag;
+        return Page();
     }
 
     private async Task<bool> SaveConfigAsync(bool requireUrl)

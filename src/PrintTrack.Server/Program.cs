@@ -52,6 +52,8 @@ builder.Services.AddSingleton<JobLogFetcher>();
 builder.Services.AddSingleton<JobLogPollingService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<JobLogPollingService>());
 
+builder.Services.AddSingleton<IppClient>();
+
 builder.Services.AddRazorPages(o =>
 {
     o.Conventions.AuthorizeFolder("/");

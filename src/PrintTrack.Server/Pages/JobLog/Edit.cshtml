@@ -40,8 +40,50 @@
 
         <button class="btn btn-primary" asp-page-handler="Save">Guardar</button>
         <button class="btn btn-outline-primary" asp-page-handler="Poll">Guardar y traer ahora</button>
+        <button class="btn btn-outline-secondary" asp-page-handler="TestIpp">Probar IPP (páginas)</button>
         <a href="/JobLog" class="btn btn-link">Volver</a>
     </form>
+
+    @if (Model.IppError is { Length: > 0 } || Model.IppJobs is not null)
+    {
+        <hr />
+        <h6>Prueba IPP</h6>
+        @if (Model.IppError is { Length: > 0 })
+        {
+            <p class="text-danger small">@Model.IppError</p>
+        }
+        @if (Model.IppJobs is { Count: > 0 })
+        {
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead><tr><th>Usuario</th><th>Trabajo</th><th class="text-end">Páginas</th><th class="text-end">Hojas</th><th>Estado</th></tr></thead>
+                    <tbody>
+                    @foreach (var j in Model.IppJobs)
+                    {
+                        <tr>
+                            <td>@j.Get("job-originating-user-name")</td>
+                            <td class="text-truncate" style="max-width:260px">@j.Get("job-name")</td>
+                            <td class="text-end">@(j.GetInt("job-impressions-completed")?.ToString() ?? "—")</td>
+                            <td class="text-end">@(j.GetInt("job-media-sheets-completed")?.ToString() ?? "—")</td>
+                            <td class="small">@j.GetInt("job-state")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else if (Model.IppJobs is not null)
+        {
+            <p class="text-muted small">El equipo respondió IPP pero no devolvió trabajos completados.</p>
+        }
+        @if (Model.IppDiag is { Length: > 0 })
+        {
+            <details class="mt-1">
+                <summary class="small text-muted">Diagnóstico IPP</summary>
+                <textarea class="form-control font-monospace mt-1" rows="8" readonly onclick="this.select()">@Model.IppDiag</textarea>
+            </details>
+        }
+    }
 
     @if (Model.Cfg is { } c)
     {
