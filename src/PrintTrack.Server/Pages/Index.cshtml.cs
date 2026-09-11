@@ -22,7 +22,10 @@ public sealed class IndexModel(AppDbContext db) : PageModel
 
     public async Task OnGetAsync()
     {
-        var since = DateTimeOffset.UtcNow.Date;
+        // Explicit UTC offset — Npgsql refuses to write a DateTimeOffset with any other offset to
+        // timestamptz, and DateTimeOffset.UtcNow.Date implicitly reconverts through the *local*
+        // time zone (broken now that the container runs with TZ set instead of defaulting to UTC).
+        var since = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
         var week = DateTimeOffset.UtcNow.AddDays(-7);
         var dayAgo = DateTimeOffset.UtcNow.AddDays(-1);
 
