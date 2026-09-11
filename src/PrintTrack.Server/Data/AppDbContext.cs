@@ -53,7 +53,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
         b.Entity<PrintJobRecord>(e =>
         {
-            e.HasIndex(x => x.JobRef).IsUnique();
+            // JobRef is a display label, not a dedup key (that's PrinterId+ExternalId below) — two
+            // different printers can legitimately produce the same JobRef (e.g. "ippimp:job21" for
+            // each one's own job #21), so it must NOT be globally unique.
             e.HasIndex(x => x.SubmittedAt);
             e.HasIndex(x => x.Status);
             e.HasIndex(x => x.SiteId);
