@@ -27,6 +27,28 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
         ["sep"] = "09", ["sept"] = "09", ["oct"] = "10", ["nov"] = "11", ["dic"] = "12", ["dec"] = "12",
     };
 
+    /// <summary>Find-or-create the <see cref="EndUser"/> for a raw login name. Used both by the bulk
+    /// Job Log import and by <see cref="JobLogPollingService"/> when an IPP match recovers the real
+    /// identity behind a generic "IPP-JOB-…" / Invitado placeholder row.</summary>
+    public async Task<int> ResolveOrCreateUserAsync(string rawUserName, CancellationToken ct)
+    {
+        var norm = Naming.NormalizeUser(rawUserName);
+        if (norm.Length == 0) norm = "INVITADO";
+        var existing = await db.EndUsers.FirstOrDefaultAsync(u => u.NormalizedUserName == norm, ct);
+        if (existing is not null) return existing.Id;
+
+        var created = new EndUser
+        {
+            UserName = string.IsNullOrWhiteSpace(rawUserName) ? "Invitado" : rawUserName,
+            NormalizedUserName = norm,
+            AutoCreated = true,
+            LastSeenAt = DateTimeOffset.UtcNow
+        };
+        db.EndUsers.Add(created);
+        await db.SaveChangesAsync(ct);
+        return created.Id;
+    }
+
     public async Task<ImportResult> ImportAsync(
         int printerId, string content, bool onlyPrintJobs, string triggeredBy, CancellationToken ct)
     {

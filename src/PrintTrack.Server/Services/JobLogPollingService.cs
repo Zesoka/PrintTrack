@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using PrintTrack.Server.Data;
@@ -99,7 +100,7 @@ public sealed class JobLogPollingService(
         // Best-effort: back-fill real Páginas/Hojas via IPP (Get-Jobs) on whatever this printer's
         // Job Log just imported (or imported earlier) with no page data yet. Never creates rows —
         // only updates existing ones — so it can't duplicate what the Job Log scrape already added.
-        var (ippUpdated, ippNote) = await EnrichPagesFromIppAsync(db, cfg, printerId, ct);
+        var (ippUpdated, ippNote) = await EnrichPagesFromIppAsync(db, importer, cfg, printerId, ct);
         if (ippUpdated > 0)
             logger.LogInformation("IPP: {Updated} trabajo(s) de la impresora {PrinterId} completados con páginas/hojas reales.", ippUpdated, printerId);
         if (ippNote is not null && cfg.LastError is null)
@@ -109,15 +110,21 @@ public sealed class JobLogPollingService(
         return (result.Imported, cfg.LastError);
     }
 
+    // The device logs jobs submitted via IPP generically as "IPP-JOB-<id>-01" / "Invitado" in its
+    // Job Log — the real user and document only ever show up over IPP itself. <id> lines up with
+    // IPP's own job-id, so that's the reliable join key for those rows.
+    private static readonly Regex IppPlaceholderName = new(@"^IPP-JOB-0*(\d+)-\d+$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     /// <summary>
     /// Ask the printer's IPP endpoint (port 631) for completed jobs and use them to fill in the
-    /// real <c>Pages</c>/<c>Sheets</c> of already-imported jobs (matched by printer + normalized
-    /// user + exact document name, among rows still at <c>Sheets == 0</c> from the last week).
-    /// HP's Job Log HTML never exposes a page count; IPP's <c>job-impressions-completed</c> /
-    /// <c>job-media-sheets-completed</c> does.
+    /// real <c>Pages</c>/<c>Sheets</c> of already-imported jobs still at <c>Sheets == 0</c> (last
+    /// week). Matches by IPP <c>job-id</c> against the device's "IPP-JOB-&lt;id&gt;-01" placeholder
+    /// name when present — recovering the real user/document for those — else by printer + exact
+    /// document name + normalized user, for jobs submitted the classic (non-IPP) way. HP's Job Log
+    /// HTML never exposes a page count; IPP's <c>job-impressions-completed</c> / <c>job-media-sheets-completed</c> does.
     /// </summary>
     private async Task<(int Updated, string? Note)> EnrichPagesFromIppAsync(
-        AppDbContext db, PrinterJobLogConfig cfg, int printerId, CancellationToken ct)
+        AppDbContext db, HpJobLogImporter importer, PrinterJobLogConfig cfg, int printerId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(cfg.BaseUrl) || !Uri.TryCreate(cfg.BaseUrl, UriKind.Absolute, out var u))
             return (0, null);
@@ -126,25 +133,42 @@ public sealed class JobLogPollingService(
         if (jobs is null) return (0, err is null ? null : $"IPP: {err}");
 
         var cutoff = DateTimeOffset.UtcNow.AddDays(-7);
+        var pool = await db.PrintJobs
+            .Where(j => j.PrinterId == printerId && j.Sheets == 0 && j.SubmittedAt >= cutoff)
+            .ToListAsync(ct);
+
         var updated = 0;
         foreach (var job in jobs)
         {
+            var jobId = job.GetInt("job-id");
             var userRaw = job.Get("job-originating-user-name");
             var doc = job.Get("job-name");
             var pages = job.GetInt("job-impressions-completed");
             var sheets = job.GetInt("job-media-sheets-completed") ?? pages;
             if (string.IsNullOrWhiteSpace(userRaw) || string.IsNullOrWhiteSpace(doc) || sheets is not > 0) continue;
 
-            var norm = Naming.NormalizeUser(userRaw);
-            var candidates = await db.PrintJobs
-                .Where(j => j.PrinterId == printerId && j.Sheets == 0 && j.DocumentName == doc && j.SubmittedAt >= cutoff)
-                .OrderByDescending(j => j.SubmittedAt)
-                .ToListAsync(ct);
-            var match = candidates.FirstOrDefault(j => Naming.NormalizeUser(j.UserNameRaw) == norm) ?? candidates.FirstOrDefault();
+            PrintJobRecord? match = jobId is > 0
+                ? pool.FirstOrDefault(j => IppPlaceholderName.Match(j.DocumentName) is { Success: true } m
+                                           && int.Parse(m.Groups[1].Value) == jobId)
+                : null;
+
+            if (match is null)
+            {
+                var norm = Naming.NormalizeUser(userRaw);
+                var byDoc = pool.Where(j => j.DocumentName == doc).OrderByDescending(j => j.SubmittedAt).ToList();
+                match = byDoc.FirstOrDefault(j => Naming.NormalizeUser(j.UserNameRaw) == norm) ?? byDoc.FirstOrDefault();
+            }
             if (match is null) continue;
 
+            if (IppPlaceholderName.IsMatch(match.DocumentName))
+            {
+                match.DocumentName = doc.Length > 512 ? doc[..512] : doc;
+                match.UserNameRaw = userRaw;
+                match.EndUserId = await importer.ResolveOrCreateUserAsync(userRaw, ct);
+            }
             match.Pages = pages ?? sheets.Value;
             match.Sheets = sheets.Value;
+            pool.Remove(match);   // one IPP job enriches at most one row per pull
             updated++;
         }
         return (updated, null);
