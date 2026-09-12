@@ -1,0 +1,71 @@
+@page
+@model PrintTrack.Server.Pages.Alerts.IndexModel
+@{ ViewData["Title"] = "Alertas"; }
+
+@{
+    var real = Model.Rows.Where(r => r.Label != "Job Log bloqueado, cubierto por IPP").ToList();
+    var info = Model.Rows.Where(r => r.Label == "Job Log bloqueado, cubierto por IPP").ToList();
+}
+
+<h3 class="mb-1">Alertas — impresoras con problemas</h3>
+<p class="text-muted small">
+    Errores actuales de Job Log y Contadores (SNMP), en un solo lugar. Se actualiza solo con cada
+    sondeo — no hace falta abrir la config de cada impresora una por una.
+</p>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr>
+                    <th>Impresora</th><th>Sede</th><th>Fuente</th><th>Problema</th>
+                    <th>Explicación / solución</th><th>Último intento</th><th></th>
+                </tr></thead>
+                <tbody>
+                @foreach (var r in real)
+                {
+                    <tr>
+                        <td><code>@r.Printer.Name</code></td>
+                        <td class="small">@(r.Printer.Site?.Name ?? "—")</td>
+                        <td><span class="badge bg-secondary">@r.Source</span></td>
+                        <td><span class="badge bg-danger" title="@r.RawError">@r.Label</span></td>
+                        <td class="small">@r.Explanation</td>
+                        <td class="small text-muted">@(r.LastPolledAt is { } t ? Ui.Ago(t) : "—")</td>
+                        <td class="text-nowrap">
+                            <a class="btn btn-outline-secondary btn-sm"
+                               href="@(r.Source == "Job Log" ? $"/JobLog/Edit?id={r.Printer.Id}" : $"/Meters/Edit?id={r.Printer.Id}")">Config</a>
+                        </td>
+                    </tr>
+                }
+                @if (real.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-center text-success py-3">Sin errores activos 🎉</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (info.Count > 0)
+{
+    <details>
+        <summary class="text-muted small">@info.Count impresora(s) usando el respaldo por IPP (no es un error)</summary>
+        <div class="table-responsive mt-2">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Impresora</th><th>Sede</th><th>Detalle</th><th>Último intento</th></tr></thead>
+                <tbody>
+                @foreach (var r in info)
+                {
+                    <tr>
+                        <td><code>@r.Printer.Name</code></td>
+                        <td class="small">@(r.Printer.Site?.Name ?? "—")</td>
+                        <td class="small text-muted">@r.RawError</td>
+                        <td class="small text-muted">@(r.LastPolledAt is { } t ? Ui.Ago(t) : "—")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </details>
+}
