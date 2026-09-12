@@ -21,6 +21,10 @@ public sealed class IndexModel(AppDbContext db, AdminScope scope) : PageModel
     public List<(string Name, int Sheets, int Jobs)> BySite { get; private set; } = [];
     public List<(string Name, int Sheets, int Jobs)> ByDepartment { get; private set; } = [];
 
+    public sealed record DownAlert(string PrinterName, string? SiteName, string Channel, string Detail, DateTimeOffset? LastPolledAt);
+    public List<DownAlert> DownPrinters { get; private set; } = [];
+    public const int DownAfterHours = 24;
+
     public async Task OnGetAsync()
     {
         await scope.LoadAsync();
@@ -75,5 +79,45 @@ public sealed class IndexModel(AppDbContext db, AdminScope scope) : PageModel
                 .Select(g => new { Name = g.Key, Sheets = g.Sum(x => x.Sheets), Jobs = g.Count() })
                 .OrderByDescending(x => x.Jobs).Take(12).ToListAsync())
             .Select(x => (Name: x.Name ?? "(sin área)", x.Sheets, x.Jobs)).ToList();
+
+        DownPrinters = await BuildDownAlertsAsync(printersScoped);
+    }
+
+    /// <summary>
+    /// Printers with at least one *enabled* monitoring channel (Job Log and/or SNMP) that's either
+    /// never polled, hasn't polled in <see cref="DownAfterHours"/>, or is sitting on a real error.
+    /// "Job Log no disponible ... importado por IPP: N" is the fallback working as designed, not an
+    /// error — same rule as the status badges on /JobLog.
+    /// </summary>
+    private async Task<List<DownAlert>> BuildDownAlertsAsync(IQueryable<Printer> printersScoped)
+    {
+        var cutoff = DateTimeOffset.UtcNow.AddHours(-DownAfterHours);
+        var printers = await printersScoped.Where(p => p.IsTracked)
+            .Include(p => p.Site).ToListAsync();
+        var ids = printers.Select(p => p.Id).ToList();
+
+        var jobLogCfgs = await db.PrinterJobLogConfigs.Where(c => ids.Contains(c.PrinterId)).ToDictionaryAsync(c => c.PrinterId);
+        var meterCfgs = await db.PrinterMeterConfigs.Where(c => ids.Contains(c.PrinterId)).ToDictionaryAsync(c => c.PrinterId);
+
+        var alerts = new List<DownAlert>();
+        foreach (var p in printers)
+        {
+            if (jobLogCfgs.TryGetValue(p.Id, out var jl) && jl.Enabled)
+            {
+                var realError = jl.LastError is { Length: > 0 } e && !e.Contains("importado por IPP:");
+                if (jl.LastPolledAt is null || jl.LastPolledAt < cutoff || realError)
+                    alerts.Add(new DownAlert(p.Name, p.Site?.Name, "Job Log",
+                        jl.LastError ?? (jl.LastPolledAt is null ? "nunca se pudo sondear" : "sin sondeo reciente"),
+                        jl.LastPolledAt));
+            }
+            if (meterCfgs.TryGetValue(p.Id, out var mc) && mc.Enabled)
+            {
+                if (mc.LastPolledAt is null || mc.LastPolledAt < cutoff || mc.LastError is { Length: > 0 })
+                    alerts.Add(new DownAlert(p.Name, p.Site?.Name, "SNMP",
+                        mc.LastError ?? (mc.LastPolledAt is null ? "nunca se pudo sondear" : "sin sondeo reciente"),
+                        mc.LastPolledAt));
+            }
+        }
+        return alerts.OrderBy(a => a.PrinterName).ThenBy(a => a.Channel).ToList();
     }
 }

@@ -6,6 +6,33 @@
 
 <h3 class="mb-3">Panel de control</h3>
 
+@if (Model.DownPrinters.Count > 0)
+{
+    <div class="card border-danger shadow-sm mb-4">
+        <div class="card-header bg-danger-subtle text-danger-emphasis d-flex justify-content-between align-items-center">
+            <span>⚠️ Impresoras que necesitan atención (@Model.DownPrinters.Count)</span>
+            <span class="small">sin sondeo hace más de @PrintTrack.Server.Pages.IndexModel.DownAfterHours h, o con error</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+                <thead><tr><th>Impresora</th><th>Sede</th><th>Canal</th><th>Detalle</th><th>Último sondeo</th></tr></thead>
+                <tbody>
+                @foreach (var a in Model.DownPrinters)
+                {
+                    <tr>
+                        <td><code>@a.PrinterName</code></td>
+                        <td class="small">@(a.SiteName ?? "—")</td>
+                        <td><span class="badge bg-secondary">@a.Channel</span></td>
+                        <td class="small text-danger">@a.Detail</td>
+                        <td class="small text-muted">@(a.LastPolledAt is { } t ? Ui.Ago(t) : "nunca")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3"><div class="card shadow-sm"><div class="card-body">
         <div class="text-muted small">Trabajos impresos hoy</div><div class="kpi">@Model.JobsToday</div></div></div></div>
