@@ -40,7 +40,10 @@
     <div class="col-auto">
         <button class="btn btn-outline-secondary btn-sm">Filtrar</button>
         <a href="?handler=Export&@qs" class="btn btn-outline-primary btn-sm">Exportar CSV</a>
-        <a href="/Jobs/Import" class="btn btn-outline-success btn-sm">Importar de impresora</a>
+        @if (Model.CanWrite)
+        {
+            <a href="/Jobs/Import" class="btn btn-outline-success btn-sm">Importar de impresora</a>
+        }
         <a href="/Jobs" class="btn btn-link btn-sm">Limpiar</a>
     </div>
 </form>

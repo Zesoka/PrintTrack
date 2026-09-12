@@ -24,6 +24,7 @@ public sealed class IndexModel(AppDbContext db, AdminScope scope) : PageModel
 
     public SelectList Sites { get; private set; } = new(Array.Empty<string>());
     public SelectList Departments { get; private set; } = new(Array.Empty<string>());
+    public bool CanWrite { get; private set; }
 
     public List<PrintJobRecord> Jobs { get; private set; } = [];
     public int Total { get; private set; }
@@ -55,6 +56,7 @@ public sealed class IndexModel(AppDbContext db, AdminScope scope) : PageModel
     public async Task OnGetAsync()
     {
         await scope.LoadAsync();
+        CanWrite = scope.CanWrite;
         await LoadFiltersAsync();
         var q = Filtered();
         Total = await q.CountAsync();
