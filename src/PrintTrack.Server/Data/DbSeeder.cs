@@ -20,6 +20,11 @@ public static class DbSeeder
         await WaitForDatabaseAsync(db, log);
         await db.Database.MigrateAsync();
 
+        var roles = s.GetRequiredService<RoleManager<IdentityRole>>();
+        foreach (var roleName in new[] { AdminRoles.SuperAdmin, AdminRoles.SedeAdmin, AdminRoles.SedeViewer })
+            if (!await roles.RoleExistsAsync(roleName))
+                await roles.CreateAsync(new IdentityRole(roleName));
+
         var users = s.GetRequiredService<UserManager<AdminUser>>();
         if (!await users.Users.AnyAsync())
         {
@@ -32,10 +37,28 @@ public static class DbSeeder
             };
             var res = await users.CreateAsync(admin, opt.SeedAdminPassword);
             if (res.Succeeded)
+            {
+                await users.AddToRoleAsync(admin, AdminRoles.SuperAdmin);
                 log.LogWarning("Admin '{User}' creado con la contraseña semilla. Cámbiela cuanto antes.", opt.SeedAdminUser);
+            }
             else
                 log.LogError("No se pudo crear el admin semilla: {Errors}",
                     string.Join("; ", res.Errors.Select(e => e.Description)));
+        }
+        else
+        {
+            // Upgrade path: installs from before roles existed have admins with no role at all —
+            // make sure at least one SuperAdmin exists so nobody gets locked out of everything.
+            var superAdmins = await users.GetUsersInRoleAsync(AdminRoles.SuperAdmin);
+            if (superAdmins.Count == 0)
+            {
+                var first = await users.Users.OrderBy(u => u.Id).FirstOrDefaultAsync();
+                if (first is not null)
+                {
+                    await users.AddToRoleAsync(first, AdminRoles.SuperAdmin);
+                    log.LogWarning("'{User}' promovido a SuperAdmin (instalación previa a roles).", first.UserName);
+                }
+            }
         }
     }
 

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace PrintTrack.Server.Pages.Discovery;
 /// <summary>Server-side network sweep for HP printers (SNMP) — no agent, nothing installed
 /// anywhere. Finds candidates in a subnet and bulk-creates Printer + SNMP + Job Log config for
 /// the ones you pick, instead of typing every IP by hand.</summary>
+[Authorize(Roles = AdminRoles.SuperAdmin)]
 public sealed class IndexModel(NetworkDiscoveryService discovery, AppDbContext db) : PageModel
 {
     [BindProperty] public string Cidr { get; set; } = "";

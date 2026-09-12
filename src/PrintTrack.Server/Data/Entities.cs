@@ -9,6 +9,30 @@ public sealed class AdminUser : IdentityUser
     public string? DisplayName { get; set; }
 }
 
+/// <summary>Roles an <see cref="AdminUser"/> can hold (seeded once via DbSeeder).</summary>
+public static class AdminRoles
+{
+    /// <summary>Sees and manages everything — all Sedes, catálogos, descubrimiento, otros admins.</summary>
+    public const string SuperAdmin = "SuperAdmin";
+
+    /// <summary>Lectura y escritura, pero solo dentro de sus Sedes asignadas.</summary>
+    public const string SedeAdmin = "SedeAdmin";
+
+    /// <summary>Solo lectura, solo dentro de sus Sedes asignadas.</summary>
+    public const string SedeViewer = "SedeViewer";
+}
+
+/// <summary>Which Sedes a non-SuperAdmin <see cref="AdminUser"/> can see/manage. Irrelevant for
+/// SuperAdmin, who sees every Sede regardless of rows here.</summary>
+public sealed class AdminSiteAccess
+{
+    public int Id { get; set; }
+    public string AdminUserId { get; set; } = "";
+    public AdminUser AdminUser { get; set; } = null!;
+    public int SiteId { get; set; }
+    public Site Site { get; set; } = null!;
+}
+
 /// <summary>A branch / location. Assigned to a printer; every job from that printer's log inherits it.</summary>
 public sealed class Site
 {

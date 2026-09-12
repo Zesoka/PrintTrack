@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Identity
+@using PrintTrack.Server.Data
 @inject SignInManager<AdminUser> SignInManager
 @{
     var signedIn = SignInManager.IsSignedIn(User);
@@ -34,12 +35,22 @@
                     <li class="nav-item"><a class="nav-link" href="/Jobs">Trabajos</a></li>
                     <li class="nav-item"><a class="nav-link" href="/Users">Usuarios</a></li>
                     <li class="nav-item"><a class="nav-link" href="/Printers">Impresoras</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/Discovery">Descubrir</a></li>
                     <li class="nav-item"><a class="nav-link" href="/Meters">Contadores</a></li>
                     <li class="nav-item"><a class="nav-link" href="/JobLog">Job Log</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/Catalogs">Catálogos</a></li>
+                    @if (User.IsInRole(AdminRoles.SuperAdmin))
+                    {
+                        <li class="nav-item"><a class="nav-link" href="/Discovery">Descubrir</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/Catalogs">Catálogos</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/Admins">Administradores</a></li>
+                    }
                 </ul>
-                <span class="navbar-text text-light me-3">@User.Identity?.Name</span>
+                <span class="navbar-text text-light me-3">
+                    @User.Identity?.Name
+                    @if (!User.IsInRole(AdminRoles.SuperAdmin))
+                    {
+                        <span class="badge bg-secondary ms-1">@(User.IsInRole(AdminRoles.SedeAdmin) ? "sede" : "solo lectura")</span>
+                    }
+                </span>
                 <form method="post" action="/Account/Logout">
                     <button class="btn btn-outline-light btn-sm" type="submit">Salir</button>
                 </form>

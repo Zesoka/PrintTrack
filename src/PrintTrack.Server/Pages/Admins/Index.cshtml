@@ -1,0 +1,77 @@
+@page
+@model PrintTrack.Server.Pages.Admins.IndexModel
+@using PrintTrack.Server.Data
+@{ ViewData["Title"] = "Administradores"; }
+
+<h3 class="mb-1">Administradores</h3>
+<p class="text-muted small">
+    <strong>SuperAdmin</strong> ve y gestiona todo. <strong>SedeAdmin</strong> lee y edita solo sus
+    Sedes asignadas. <strong>SedeViewer</strong> solo lectura, solo sus Sedes.
+</p>
+<div asp-validation-summary="All" class="text-danger small mb-2"></div>
+
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card shadow-sm"><div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Sedes</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Rows)
+                {
+                    <tr>
+                        <td><code>@r.UserName</code></td>
+                        <td class="small">@r.Email</td>
+                        <td><span class="badge bg-secondary">@r.Role</span></td>
+                        <td class="small">@r.SitesText</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-outline-secondary btn-sm" href="/Admins/Edit?id=@r.Id">Editar</a>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@r.Id" class="d-inline"
+                                  onsubmit="return confirm('¿Borrar @r.UserName?');">
+                                <button class="btn btn-outline-danger btn-sm">Borrar</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div></div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm"><div class="card-body">
+            <h6>Nuevo administrador</h6>
+            <form method="post" asp-page-handler="Create">
+                <div class="mb-2"><label class="form-label">Usuario</label>
+                    <input asp-for="NewUserName" class="form-control" /></div>
+                <div class="mb-2"><label class="form-label">Email (opcional)</label>
+                    <input asp-for="NewEmail" class="form-control" /></div>
+                <div class="mb-2"><label class="form-label">Contraseña</label>
+                    <input asp-for="NewPassword" type="password" class="form-control" /></div>
+                <div class="mb-2"><label class="form-label">Rol</label>
+                    <select asp-for="NewRole" class="form-select">
+                        <option value="@AdminRoles.SuperAdmin">SuperAdmin</option>
+                        <option value="@AdminRoles.SedeAdmin">SedeAdmin</option>
+                        <option value="@AdminRoles.SedeViewer" selected>SedeViewer</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Sedes (ignorado si es SuperAdmin)</label>
+                    <div class="border rounded p-2" style="max-height:180px;overflow:auto">
+                        @foreach (var s in Model.Sites)
+                        {
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="NewSiteIds" value="@s.Id" id="ns@(s.Id)" />
+                                <label class="form-check-label" for="ns@(s.Id)">@s.Name</label>
+                            </div>
+                        }
+                        @if (Model.Sites.Count == 0)
+                        {
+                            <span class="text-muted small">No hay Sedes cargadas todavía (Catálogos).</span>
+                        }
+                    </div>
+                </div>
+                <button class="btn btn-primary">Crear</button>
+            </form>
+        </div></div>
+    </div>
+</div>

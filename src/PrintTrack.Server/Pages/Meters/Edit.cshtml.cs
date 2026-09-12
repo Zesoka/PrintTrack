@@ -7,12 +7,13 @@ using PrintTrack.Server.Services;
 
 namespace PrintTrack.Server.Pages.Meters;
 
-public sealed class EditModel(AppDbContext db, MeterPollingService poller, SnmpMeterReader reader) : PageModel
+public sealed class EditModel(AppDbContext db, MeterPollingService poller, SnmpMeterReader reader, AdminScope scope) : PageModel
 {
     public Printer Printer { get; private set; } = null!;
     public PrinterMeterConfig? Cfg { get; private set; }
     public List<MeterReading> Readings { get; private set; } = [];
     public string? OidTestResult { get; private set; }
+    public bool CanWrite { get; private set; }
 
     [BindProperty] public InputModel Input { get; set; } = new();
     [BindProperty] public ManualReading Manual { get; set; } = new();
@@ -48,6 +49,7 @@ public sealed class EditModel(AppDbContext db, MeterPollingService poller, SnmpM
     public async Task<IActionResult> OnGetAsync(int id)
     {
         if (!await LoadAsync(id)) return NotFound();
+        if (!scope.CanSeeSite(Printer.SiteId)) return Forbid();
         Input = Cfg is null
             ? new InputModel { PrinterId = id }
             : new InputModel
@@ -64,6 +66,8 @@ public sealed class EditModel(AppDbContext db, MeterPollingService poller, SnmpM
     public async Task<IActionResult> OnPostSaveAsync()
     {
         if (!await LoadAsync(Input.PrinterId)) return NotFound();
+        if (!scope.CanSeeSite(Printer.SiteId)) return Forbid();
+        if (!scope.CanWrite) return Forbid();
         if (!await SaveConfigAsync(requireHost: false)) return Page();
 
         TempData["Msg"] = "Configuración SNMP guardada.";
@@ -74,6 +78,8 @@ public sealed class EditModel(AppDbContext db, MeterPollingService poller, SnmpM
     public async Task<IActionResult> OnPostPollAsync(CancellationToken ct)
     {
         if (!await LoadAsync(Input.PrinterId)) return NotFound();
+        if (!scope.CanSeeSite(Printer.SiteId)) return Forbid();
+        if (!scope.CanWrite) return Forbid();
         if (!await SaveConfigAsync(requireHost: true)) return Page();
 
         var err = await poller.PollOneAsync(Input.PrinterId, User.Identity?.Name ?? "admin", ct);
@@ -113,6 +119,7 @@ public sealed class EditModel(AppDbContext db, MeterPollingService poller, SnmpM
     public async Task<IActionResult> OnPostTestOidAsync(int id, CancellationToken ct)
     {
         if (!await LoadAsync(id)) return NotFound();
+        if (!scope.CanSeeSite(Printer.SiteId)) return Forbid();
         if (Cfg is null || string.IsNullOrWhiteSpace(Cfg.Host))
             OidTestResult = "Guardá primero el host SNMP.";
         else if (string.IsNullOrWhiteSpace(TestOid))
@@ -135,8 +142,11 @@ public sealed class EditModel(AppDbContext db, MeterPollingService poller, SnmpM
 
     public async Task<IActionResult> OnPostManualAsync(int id)
     {
+        await scope.LoadAsync();
         var printer = await db.Printers.FindAsync(id);
         if (printer is null) return NotFound();
+        if (!scope.CanSeeSite(printer.SiteId)) return Forbid();
+        if (!scope.CanWrite) return Forbid();
         db.MeterReadings.Add(new MeterReading
         {
             PrinterId = id,
@@ -152,6 +162,12 @@ public sealed class EditModel(AppDbContext db, MeterPollingService poller, SnmpM
 
     public async Task<IActionResult> OnPostDeleteReadingAsync(int id, long readingId)
     {
+        await scope.LoadAsync();
+        var printer = await db.Printers.FindAsync(id);
+        if (printer is null) return NotFound();
+        if (!scope.CanSeeSite(printer.SiteId)) return Forbid();
+        if (!scope.CanWrite) return Forbid();
+
         var r = await db.MeterReadings.FirstOrDefaultAsync(x => x.Id == readingId && x.PrinterId == id);
         if (r is not null) { db.MeterReadings.Remove(r); await db.SaveChangesAsync(); }
         return RedirectToPage(new { id });
@@ -159,9 +175,11 @@ public sealed class EditModel(AppDbContext db, MeterPollingService poller, SnmpM
 
     private async Task<bool> LoadAsync(int id)
     {
+        await scope.LoadAsync();
         var printer = await db.Printers.FindAsync(id);
         if (printer is null) return false;
         Printer = printer;
+        CanWrite = scope.CanWrite;
         Cfg = await db.PrinterMeterConfigs.FindAsync(id);
         Readings = await db.MeterReadings.Where(m => m.PrinterId == id)
             .OrderByDescending(m => m.TakenAt).Take(40).ToListAsync();

@@ -6,10 +6,11 @@ using PrintTrack.Server.Services;
 
 namespace PrintTrack.Server.Pages.JobLog;
 
-public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppClient ipp) : PageModel
+public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppClient ipp, AdminScope scope) : PageModel
 {
     public Printer Printer { get; private set; } = null!;
     public PrinterJobLogConfig? Cfg { get; private set; }
+    public bool CanWrite { get; private set; }
 
     public List<IppClient.IppJob>? IppJobs { get; private set; }
     public string? IppDiag { get; private set; }
@@ -31,6 +32,7 @@ public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppC
     public async Task<IActionResult> OnGetAsync(int id)
     {
         if (!await LoadAsync(id)) return NotFound();
+        if (!scope.CanSeeSite(Printer.SiteId)) return Forbid();
         Input = Cfg is null
             ? new InputModel { PrinterId = id }
             : new InputModel
@@ -45,6 +47,8 @@ public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppC
     public async Task<IActionResult> OnPostSaveAsync()
     {
         if (!await LoadAsync(Input.PrinterId)) return NotFound();
+        if (!scope.CanSeeSite(Printer.SiteId)) return Forbid();
+        if (!scope.CanWrite) return Forbid();
         if (!await SaveConfigAsync(requireUrl: false)) return Page();
 
         TempData["Msg"] = "Configuración guardada.";
@@ -55,6 +59,8 @@ public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppC
     public async Task<IActionResult> OnPostPollAsync(CancellationToken ct)
     {
         if (!await LoadAsync(Input.PrinterId)) return NotFound();
+        if (!scope.CanSeeSite(Printer.SiteId)) return Forbid();
+        if (!scope.CanWrite) return Forbid();
         if (!await SaveConfigAsync(requireUrl: true)) return Page();
 
         var (n, err) = await poller.PollOneAsync(Input.PrinterId, User.Identity?.Name ?? "admin", ct);
@@ -72,6 +78,7 @@ public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppC
     public async Task<IActionResult> OnPostTestIppAsync(CancellationToken ct)
     {
         if (!await LoadAsync(Input.PrinterId)) return NotFound();
+        if (!scope.CanSeeSite(Printer.SiteId)) return Forbid();
 
         var baseUrl = string.IsNullOrWhiteSpace(Input.BaseUrl) ? Cfg?.BaseUrl : Input.BaseUrl;
         if (string.IsNullOrWhiteSpace(baseUrl) || !Uri.TryCreate(baseUrl.Trim(), UriKind.Absolute, out var u))
@@ -109,9 +116,11 @@ public sealed class EditModel(AppDbContext db, JobLogPollingService poller, IppC
 
     private async Task<bool> LoadAsync(int id)
     {
+        await scope.LoadAsync();
         var printer = await db.Printers.FindAsync(id);
         if (printer is null) return false;
         Printer = printer;
+        CanWrite = scope.CanWrite;
         Cfg = await db.PrinterJobLogConfigs.FindAsync(id);
         return true;
     }

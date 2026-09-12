@@ -30,11 +30,16 @@
                             </td>
                             <td class="small text-muted">@(r.Printer.LastSeenAt == r.Printer.FirstSeenAt ? "—" : Ui.Ago(r.Printer.LastSeenAt))</td>
                             <td class="text-end text-nowrap">
-                                <a class="btn btn-outline-secondary btn-sm" href="/Printers/Edit?id=@r.Printer.Id">Editar</a>
-                                <form method="post" asp-page-handler="Delete" asp-route-id="@r.Printer.Id" class="d-inline"
-                                      onsubmit="return confirm('¿Eliminar esta impresora?');">
-                                    <button class="btn btn-link btn-sm text-danger p-0 ms-1">×</button>
-                                </form>
+                                <a class="btn btn-outline-secondary btn-sm" href="/Printers/Edit?id=@r.Printer.Id">
+                                    @(Model.CanWrite ? "Editar" : "Ver")
+                                </a>
+                                @if (Model.CanWrite)
+                                {
+                                    <form method="post" asp-page-handler="Delete" asp-route-id="@r.Printer.Id" class="d-inline"
+                                          onsubmit="return confirm('¿Eliminar esta impresora?');">
+                                        <button class="btn btn-link btn-sm text-danger p-0 ms-1">×</button>
+                                    </form>
+                                }
                             </td>
                         </tr>
                     }
@@ -48,18 +53,30 @@
         </div>
     </div>
 
-    <div class="col-lg-4">
-        <div class="card shadow-sm"><div class="card-body">
-            <h6>Agregar impresora</h6>
-            <p class="text-muted small">Después entrá a «Editar» para asignarle la sede.</p>
-            <form method="post" asp-page-handler="Create">
-                <div asp-validation-summary="All" class="text-danger small mb-2"></div>
-                <div class="mb-2"><label class="form-label">Nombre</label>
-                    <input asp-for="Create.Name" class="form-control" /></div>
-                <div class="mb-2"><label class="form-label">Ubicación</label>
-                    <input asp-for="Create.Location" class="form-control" /></div>
-                <button class="btn btn-primary btn-sm">Crear</button>
-            </form>
-        </div></div>
-    </div>
+    @if (Model.CanWrite)
+    {
+        <div class="col-lg-4">
+            <div class="card shadow-sm"><div class="card-body">
+                <h6>Agregar impresora</h6>
+                <p class="text-muted small">Para carga masiva por rango de red, usá «Descubrir».</p>
+                <form method="post" asp-page-handler="Create">
+                    <div asp-validation-summary="All" class="text-danger small mb-2"></div>
+                    <div class="mb-2"><label class="form-label">Nombre</label>
+                        <input asp-for="Create.Name" class="form-control" /></div>
+                    <div class="mb-2"><label class="form-label">Ubicación</label>
+                        <input asp-for="Create.Location" class="form-control" /></div>
+                    <div class="mb-2"><label class="form-label">Sede</label>
+                        <select asp-for="Create.SiteId" class="form-select">
+                            <option value="">—</option>
+                            @foreach (var s in Model.AvailableSites)
+                            {
+                                <option value="@s.Id">@s.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <button class="btn btn-primary btn-sm">Crear</button>
+                </form>
+            </div></div>
+        </div>
+    }
 </div>

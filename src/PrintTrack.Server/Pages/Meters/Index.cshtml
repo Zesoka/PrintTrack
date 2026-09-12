@@ -6,9 +6,12 @@
     <h3 class="mb-0">Contadores de impresora (SNMP)</h3>
     <div>
         <a href="/Meters/Report" class="btn btn-outline-secondary btn-sm">Reporte por período</a>
-        <form method="post" asp-page-handler="PollAll" class="d-inline">
-            <button class="btn btn-primary btn-sm">Sondear todas ahora</button>
-        </form>
+        @if (Model.CanWrite)
+        {
+            <form method="post" asp-page-handler="PollAll" class="d-inline">
+                <button class="btn btn-primary btn-sm">Sondear todas ahora</button>
+            </form>
+        }
     </div>
 </div>
 <p class="text-muted small">
@@ -47,13 +50,13 @@
                         else { <span class="text-muted">—</span> }
                     </td>
                     <td class="text-end text-nowrap">
-                        @if (r.Cfg?.Enabled == true)
+                        @if (r.Cfg?.Enabled == true && Model.CanWrite)
                         {
                             <form method="post" asp-page-handler="PollOne" asp-route-id="@r.Printer.Id" class="d-inline">
                                 <button class="btn btn-outline-primary btn-sm">Sondear</button>
                             </form>
                         }
-                        <a class="btn btn-outline-secondary btn-sm" href="/Meters/Edit?id=@r.Printer.Id">Config</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/Meters/Edit?id=@r.Printer.Id">@(Model.CanWrite ? "Config" : "Ver")</a>
                     </td>
                 </tr>
             }

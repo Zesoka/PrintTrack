@@ -8,7 +8,7 @@ using PrintTrack.Shared;
 
 namespace PrintTrack.Server.Pages.Jobs;
 
-public sealed class IndexModel(AppDbContext db) : PageModel
+public sealed class IndexModel(AppDbContext db, AdminScope scope) : PageModel
 {
     public const int PageSize = 50;
     private const int ExportCap = 100_000;
@@ -47,11 +47,14 @@ public sealed class IndexModel(AppDbContext db) : PageModel
             q = q.Where(j => j.SubmittedAt >= new DateTimeOffset(f.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero));
         if (To is DateOnly t)
             q = q.Where(j => j.SubmittedAt < new DateTimeOffset(t.AddDays(1).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero));
+        if (!scope.IsSuperAdmin)
+            q = q.Where(j => j.SiteId != null && scope.SiteIds.Contains(j.SiteId.Value));
         return q;
     }
 
     public async Task OnGetAsync()
     {
+        await scope.LoadAsync();
         await LoadFiltersAsync();
         var q = Filtered();
         Total = await q.CountAsync();
@@ -64,6 +67,7 @@ public sealed class IndexModel(AppDbContext db) : PageModel
 
     public async Task<IActionResult> OnGetExportAsync(CancellationToken ct)
     {
+        await scope.LoadAsync(ct);
         var rows = await Filtered()
             .Include(j => j.Site).Include(j => j.EndUser).ThenInclude(u => u.Department)
             .OrderByDescending(j => j.SubmittedAt).Take(ExportCap).ToListAsync(ct);
@@ -85,8 +89,10 @@ public sealed class IndexModel(AppDbContext db) : PageModel
 
     private async Task LoadFiltersAsync()
     {
+        var sitesQ = db.Sites.AsQueryable();
+        if (!scope.IsSuperAdmin) sitesQ = sitesQ.Where(s => scope.SiteIds.Contains(s.Id));
         Sites = new SelectList(
-            await db.Sites.OrderBy(s => s.Name).Select(s => new { s.Id, s.Name }).ToListAsync(), "Id", "Name");
+            await sitesQ.OrderBy(s => s.Name).Select(s => new { s.Id, s.Name }).ToListAsync(), "Id", "Name");
         Departments = new SelectList(
             await db.Departments.OrderBy(d => d.Name).Select(d => new { d.Id, d.Name }).ToListAsync(), "Id", "Name");
     }

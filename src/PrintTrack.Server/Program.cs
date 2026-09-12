@@ -32,6 +32,8 @@ builder.Services.AddIdentity<AdminUser, IdentityRole>(o =>
     .AddDefaultTokenProviders();
 
 builder.Services.AddAuthorization();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AdminScope>();
 
 builder.Services.ConfigureApplicationCookie(o =>
 {

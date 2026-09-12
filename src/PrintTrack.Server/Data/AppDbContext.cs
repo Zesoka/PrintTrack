@@ -14,6 +14,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<PrinterMeterConfig> PrinterMeterConfigs => Set<PrinterMeterConfig>();
     public DbSet<MeterReading> MeterReadings => Set<MeterReading>();
     public DbSet<PrinterJobLogConfig> PrinterJobLogConfigs => Set<PrinterJobLogConfig>();
+    public DbSet<AdminSiteAccess> AdminSiteAccess => Set<AdminSiteAccess>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -96,6 +97,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             e.Property(x => x.BaseUrl).HasMaxLength(256);
             e.Property(x => x.ReportPath).HasMaxLength(256);
             e.Property(x => x.ExportFormatId).HasMaxLength(64);
+        });
+
+        b.Entity<AdminSiteAccess>(e =>
+        {
+            e.HasIndex(x => new { x.AdminUserId, x.SiteId }).IsUnique();
+            e.HasOne(x => x.AdminUser).WithMany()
+                .HasForeignKey(x => x.AdminUserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Site).WithMany()
+                .HasForeignKey(x => x.SiteId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

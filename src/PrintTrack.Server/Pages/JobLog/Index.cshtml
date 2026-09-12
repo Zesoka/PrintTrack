@@ -4,9 +4,12 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0">Job Log HP — pull automático</h3>
-    <form method="post" asp-page-handler="PollAll" class="d-inline">
-        <button class="btn btn-primary btn-sm">Traer de todas ahora</button>
-    </form>
+    @if (Model.CanWrite)
+    {
+        <form method="post" asp-page-handler="PollAll" class="d-inline">
+            <button class="btn btn-primary btn-sm">Traer de todas ahora</button>
+        </form>
+    }
 </div>
 <p class="text-muted small">
     El servidor baja el CSV del "Registro de trabajos" de cada impresora por HTTPS y lo importa
@@ -44,13 +47,13 @@
                         else { <span class="text-muted">—</span> }
                     </td>
                     <td class="text-end text-nowrap">
-                        @if (r.Cfg?.Enabled == true)
+                        @if (r.Cfg?.Enabled == true && Model.CanWrite)
                         {
                             <form method="post" asp-page-handler="PollOne" asp-route-id="@r.Printer.Id" class="d-inline">
                                 <button class="btn btn-outline-primary btn-sm">Traer ahora</button>
                             </form>
                         }
-                        <a class="btn btn-outline-secondary btn-sm" href="/JobLog/Edit?id=@r.Printer.Id">Config</a>
+                        <a class="btn btn-outline-secondary btn-sm" href="/JobLog/Edit?id=@r.Printer.Id">@(Model.CanWrite ? "Config" : "Ver")</a>
                     </td>
                 </tr>
             }

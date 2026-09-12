@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -5,6 +6,7 @@ using PrintTrack.Server.Data;
 
 namespace PrintTrack.Server.Pages.Catalogs;
 
+[Authorize(Roles = AdminRoles.SuperAdmin)]
 public sealed class IndexModel(AppDbContext db) : PageModel
 {
     public List<Site> Sites { get; private set; } = [];

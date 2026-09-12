@@ -1,11 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using PrintTrack.Server.Data;
+using PrintTrack.Server.Services;
 using PrintTrack.Shared;
 
 namespace PrintTrack.Server.Pages;
 
-public sealed class IndexModel(AppDbContext db) : PageModel
+public sealed class IndexModel(AppDbContext db, AdminScope scope) : PageModel
 {
     public int UsersCount { get; private set; }
     public int PrintersOnline { get; private set; }
@@ -22,6 +23,8 @@ public sealed class IndexModel(AppDbContext db) : PageModel
 
     public async Task OnGetAsync()
     {
+        await scope.LoadAsync();
+
         // Explicit UTC offset — Npgsql refuses to write a DateTimeOffset with any other offset to
         // timestamptz, and DateTimeOffset.UtcNow.Date implicitly reconverts through the *local*
         // time zone (broken now that the container runs with TZ set instead of defaulting to UTC).
@@ -29,16 +32,21 @@ public sealed class IndexModel(AppDbContext db) : PageModel
         var week = DateTimeOffset.UtcNow.AddDays(-7);
         var dayAgo = DateTimeOffset.UtcNow.AddDays(-1);
 
-        UsersCount = await db.EndUsers.CountAsync();
-        PrintersOnline = await db.Printers.CountAsync(p => p.LastSeenAt >= dayAgo);
+        var jobsScoped = db.PrintJobs.Where(j => scope.IsSuperAdmin || (j.SiteId != null && scope.SiteIds.Contains(j.SiteId.Value)));
+        var printersScoped = db.Printers.Where(p => scope.IsSuperAdmin || (p.SiteId != null && scope.SiteIds.Contains(p.SiteId.Value)));
 
-        var todayPrinted = db.PrintJobs.Where(j => j.SubmittedAt >= since && j.Status == PrintJobStatus.Printed);
+        UsersCount = scope.IsSuperAdmin
+            ? await db.EndUsers.CountAsync()
+            : await jobsScoped.Select(j => j.EndUserId).Distinct().CountAsync();
+        PrintersOnline = await printersScoped.CountAsync(p => p.LastSeenAt >= dayAgo);
+
+        var todayPrinted = jobsScoped.Where(j => j.SubmittedAt >= since && j.Status == PrintJobStatus.Printed);
         JobsToday = await todayPrinted.CountAsync();
         SheetsToday = await todayPrinted.SumAsync(j => (int?)j.Sheets) ?? 0;
         ColorSheetsToday = await todayPrinted.Where(j => j.Color == ColorMode.Color).SumAsync(j => (int?)j.Sheets) ?? 0;
-        DeniedToday = await db.PrintJobs.CountAsync(j => j.SubmittedAt >= since && j.Status == PrintJobStatus.Denied);
+        DeniedToday = await jobsScoped.CountAsync(j => j.SubmittedAt >= since && j.Status == PrintJobStatus.Denied);
 
-        Recent = await db.PrintJobs
+        Recent = await jobsScoped
             .Include(j => j.Site).Include(j => j.EndUser).ThenInclude(u => u.Department)
             .OrderByDescending(j => j.SubmittedAt).Take(15).ToListAsync();
 
@@ -54,7 +62,7 @@ public sealed class IndexModel(AppDbContext db) : PageModel
                 .OrderByDescending(x => x.Jobs).Take(8).ToListAsync())
             .Select(x => (x.Name, x.Sheets, x.Jobs)).ToList();
 
-        var weekPrinted = db.PrintJobs.Where(j => j.SubmittedAt >= week && j.Status == PrintJobStatus.Printed);
+        var weekPrinted = jobsScoped.Where(j => j.SubmittedAt >= week && j.Status == PrintJobStatus.Printed);
 
         BySite = (await weekPrinted
                 .GroupBy(j => j.Site!.Name)

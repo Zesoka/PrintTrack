@@ -6,22 +6,40 @@ using PrintTrack.Server.Services;
 
 namespace PrintTrack.Server.Pages.JobLog;
 
-public sealed class IndexModel(AppDbContext db, JobLogPollingService poller) : PageModel
+public sealed class IndexModel(AppDbContext db, JobLogPollingService poller, AdminScope scope) : PageModel
 {
     public sealed record Row(Printer Printer, PrinterJobLogConfig? Cfg);
     public List<Row> Rows { get; private set; } = [];
+    public bool CanWrite { get; private set; }
 
     public async Task OnGetAsync() => await LoadAsync();
 
     public async Task<IActionResult> OnPostPollAllAsync(CancellationToken ct)
     {
-        var n = await poller.PollAllAsync(User.Identity?.Name ?? "admin", ct);
+        await scope.LoadAsync(ct);
+        if (!scope.CanWrite) return Forbid();
+        int n;
+        if (scope.IsSuperAdmin) n = await poller.PollAllAsync(User.Identity?.Name ?? "admin", ct);
+        else
+        {
+            var ids = await db.Printers.Where(p => p.SiteId != null && scope.SiteIds.Contains(p.SiteId.Value))
+                .Select(p => p.Id).ToListAsync(ct);
+            n = 0;
+            foreach (var id in ids)
+                n += (await poller.PollOneAsync(id, User.Identity?.Name ?? "admin", ct)).Imported;
+        }
         TempData["Msg"] = $"Pull completado: {n} trabajo(s) nuevo(s).";
         return RedirectToPage();
     }
 
     public async Task<IActionResult> OnPostPollOneAsync(int id, CancellationToken ct)
     {
+        await scope.LoadAsync(ct);
+        if (!scope.CanWrite) return Forbid();
+        var printer = await db.Printers.FindAsync([id], ct);
+        if (printer is null) return NotFound();
+        if (!scope.CanSeeSite(printer.SiteId)) return Forbid();
+
         var (n, err) = await poller.PollOneAsync(id, User.Identity?.Name ?? "admin", ct);
         // "Job Log no disponible ... importado por IPP: N" is IPP doing its job, not a failure —
         // only treat it as an error banner when neither path produced anything.
@@ -32,7 +50,13 @@ public sealed class IndexModel(AppDbContext db, JobLogPollingService poller) : P
 
     private async Task LoadAsync()
     {
-        var printers = await db.Printers.OrderBy(p => p.Name).ToListAsync();
+        await scope.LoadAsync();
+        CanWrite = scope.CanWrite;
+
+        var printersQ = db.Printers.AsQueryable();
+        if (!scope.IsSuperAdmin)
+            printersQ = printersQ.Where(p => p.SiteId != null && scope.SiteIds.Contains(p.SiteId.Value));
+        var printers = await printersQ.OrderBy(p => p.Name).ToListAsync();
         var cfgs = await db.PrinterJobLogConfigs.ToDictionaryAsync(c => c.PrinterId);
         Rows = printers.Select(p => new Row(p, cfgs.GetValueOrDefault(p.Id))).ToList();
     }

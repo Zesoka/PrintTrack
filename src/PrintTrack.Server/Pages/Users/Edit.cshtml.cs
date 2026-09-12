@@ -8,9 +8,10 @@ using PrintTrack.Server.Services;
 
 namespace PrintTrack.Server.Pages.Users;
 
-public sealed class EditModel(AppDbContext db) : PageModel
+public sealed class EditModel(AppDbContext db, AdminScope scope) : PageModel
 {
     public bool IsNew => Input.Id == 0;
+    public bool CanWrite { get; private set; }
     public SelectList Departments { get; private set; } = new(Array.Empty<string>());
 
     [BindProperty] public InputModel Input { get; set; } = new();
@@ -26,6 +27,8 @@ public sealed class EditModel(AppDbContext db) : PageModel
 
     public async Task<IActionResult> OnGetAsync(int? id)
     {
+        await scope.LoadAsync();
+        CanWrite = scope.CanWrite;
         await LoadDeptsAsync();
         if (id is null) return Page();
         var u = await db.EndUsers.FindAsync(id);
@@ -40,6 +43,9 @@ public sealed class EditModel(AppDbContext db) : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
+        await scope.LoadAsync();
+        CanWrite = scope.CanWrite;
+        if (!scope.CanWrite) return Forbid();
         await LoadDeptsAsync();
         if (!ModelState.IsValid) return Page();
 
