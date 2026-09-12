@@ -82,7 +82,7 @@
                         <span class="badge bg-secondary ms-1">@(User.IsInRole(AdminRoles.SedeAdmin) ? "sede" : "solo lectura")</span>
                     }
                 </span>
-                <form method="post" action="/Account/Logout">
+                <form method="post" asp-page="/Account/Logout">
                     <button class="btn btn-outline-light btn-sm" type="submit">Salir</button>
                 </form>
             </div>
