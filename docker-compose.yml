@@ -30,6 +30,7 @@ services:
       ConnectionStrings__Postgres: "Host=db;Port=5432;Database=printtrack;Username=printtrack;Password=printtrack"
       ASPNETCORE_URLS: "http://+:8095"
       PrintTrack__SeedAdminPassword: "ChangeMe!123"
+      TZ: "America/Argentina/Buenos_Aires"
     volumes:
       - printtrack-keys:/keys
     ports:
