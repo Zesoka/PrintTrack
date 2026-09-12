@@ -44,15 +44,27 @@ public sealed class JobLogPollingService(
         var ids = await db.PrinterJobLogConfigs
             .Where(c => c.Enabled && c.BaseUrl != null && c.BaseUrl != "")
             .Select(c => c.PrinterId).ToListAsync(ct);
+        if (ids.Count == 0) return 0;
 
+        // Bounded parallelism, not serial — at fleet scale (hundreds of printers), polling one at a
+        // time can easily take longer than PollMinutes and the cycle falls behind. PollOneAsync
+        // opens its own DI scope/DbContext per call, so concurrent calls are safe.
         var imported = 0;
-        foreach (var id in ids)
+        using var gate = new SemaphoreSlim(Math.Max(1, _opt.MaxParallelism));
+        await Task.WhenAll(ids.Select(async id =>
         {
-            var (n, _) = await PollOneAsync(id, triggeredBy, ct);
-            imported += n;
-        }
-        if (ids.Count > 0)
-            logger.LogInformation("Pull Job Log ({By}): {Imported} trabajos nuevos de {N} impresoras.", triggeredBy, imported, ids.Count);
+            await gate.WaitAsync(ct);
+            try
+            {
+                var (n, _) = await PollOneAsync(id, triggeredBy, ct);
+                Interlocked.Add(ref imported, n);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { logger.LogError(ex, "Pull Job Log falló para la impresora {Id}.", id); }
+            finally { gate.Release(); }
+        }));
+
+        logger.LogInformation("Pull Job Log ({By}): {Imported} trabajos nuevos de {N} impresoras.", triggeredBy, imported, ids.Count);
         return imported;
     }
 

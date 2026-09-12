@@ -28,6 +28,10 @@ public sealed class JobLogOptions
     /// <summary>HTTP timeout per device, seconds.</summary>
     public int TimeoutSeconds { get; set; } = 30;
 
+    /// <summary>Max printers polled concurrently. Sequential would take ~300 × several seconds at
+    /// fleet scale — easily longer than PollMinutes — so this is bounded parallelism, not serial.</summary>
+    public int MaxParallelism { get; set; } = 12;
+
     /// <summary>IANA id of the time zone the printer's own clock (and its Job Log timestamps) is
     /// set to. The device reports plain local time with no offset — we need this to convert it to
     /// real UTC for storage. Argentina has used UTC-3 year-round (no DST) since 2009.</summary>
