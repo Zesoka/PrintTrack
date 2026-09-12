@@ -5,13 +5,27 @@
 <h3 class="mb-3">Impresoras</h3>
 <p class="text-muted small">Cargalas a mano y asignales la sede. El registro de trabajos (Job Log) y los contadores SNMP se configuran desde cada impresora.</p>
 
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-auto">
+        <label class="form-label small mb-0">Sede</label>
+        <select name="SiteFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">— todas —</option>
+            @foreach (var s in Model.AvailableSites)
+            {
+                <option value="@s.Id" selected="@(Model.SiteFilter == s.Id)">@s.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-auto"><span class="text-muted small">@Model.Rows.Count impresora(s)</span></div>
+</form>
+
 <div class="row g-4">
     <div class="col-lg-8">
         <div class="card shadow-sm">
             <div class="table-responsive">
                 <table class="table table-sm mb-0 align-middle">
                     <thead><tr>
-                        <th>Nombre</th><th>Equipo</th><th>Ubicación</th>
+                        <th>Nombre</th><th>Sede</th><th>Equipo</th><th>Ubicación</th>
                         <th class="text-end">Hojas (30 d)</th><th class="text-end">Trab. (30 d)</th>
                         <th>Estado</th><th>Vista</th><th></th>
                     </tr></thead>
@@ -20,6 +34,10 @@
                     {
                         <tr>
                             <td><code>@r.Printer.Name</code></td>
+                            <td class="small">
+                                @if (r.Printer.Site is { } site) { <span class="badge bg-secondary">@site.Name</span> }
+                                else { <span class="text-muted">sin sede</span> }
+                            </td>
                             <td class="small text-muted">@(r.Printer.WorkstationName ?? "(cola de servidor / manual)")</td>
                             <td class="small">@r.Printer.Location</td>
                             <td class="text-end">@r.Sheets30</td>
@@ -45,7 +63,7 @@
                     }
                     @if (Model.Rows.Count == 0)
                     {
-                        <tr><td colspan="8" class="text-center text-muted py-3">Ninguna impresora todavía.</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted py-3">Ninguna impresora todavía.</td></tr>
                     }
                     </tbody>
                 </table>

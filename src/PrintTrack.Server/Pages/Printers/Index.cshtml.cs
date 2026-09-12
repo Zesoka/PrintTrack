@@ -14,6 +14,8 @@ public sealed class IndexModel(AppDbContext db, AdminScope scope) : PageModel
     public sealed record Row(Printer Printer, int Sheets30, int Jobs30);
     public List<Row> Rows { get; private set; } = [];
 
+    [BindProperty(SupportsGet = true)] public int? SiteFilter { get; set; }
+
     [BindProperty] public NewPrinter Create { get; set; } = new();
     public List<Site> AvailableSites { get; private set; } = [];
 
@@ -85,12 +87,14 @@ public sealed class IndexModel(AppDbContext db, AdminScope scope) : PageModel
         if (!scope.IsSuperAdmin) sitesQ = sitesQ.Where(s => scope.SiteIds.Contains(s.Id));
         AvailableSites = await sitesQ.OrderBy(s => s.Name).ToListAsync();
 
-        var printersQ = db.Printers.AsQueryable();
+        var printersQ = db.Printers.Include(p => p.Site).AsQueryable();
         if (!scope.IsSuperAdmin)
             printersQ = printersQ.Where(p => p.SiteId != null && scope.SiteIds.Contains(p.SiteId.Value));
+        if (SiteFilter is int sf)
+            printersQ = printersQ.Where(p => p.SiteId == sf);
 
         var printers = await printersQ
-            .OrderBy(p => p.WorkstationName).ThenBy(p => p.Name).ToListAsync();
+            .OrderBy(p => p.Site!.Name).ThenBy(p => p.WorkstationName).ThenBy(p => p.Name).ToListAsync();
 
         var since = DateTimeOffset.UtcNow.AddDays(-30);
         var stats = await db.PrintJobs
