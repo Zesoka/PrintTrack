@@ -316,13 +316,39 @@ public sealed partial class HpJobLogImporter(AppDbContext db, ILogger<HpJobLogIm
         if (DateTime.TryParseExact(s, formats, CultureInfo.InvariantCulture,
                 DateTimeStyles.AllowWhiteSpaces, out var dt))
         {
-            // dt is the printer's own local wall-clock time (no offset info) — convert it to real
-            // UTC via the configured device time zone instead of mislabeling it as UTC.
-            var utc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(dt, DateTimeKind.Unspecified), _deviceTz);
-            when = new DateTimeOffset(utc, TimeSpan.Zero);
+            var utc = ToDeviceUtc(dt);
+
+            // A Job Log only ever lists jobs that already happened — a "future" result means we
+            // guessed day/month backwards on an ambiguous numeric date (both ≤12, so "dd/MM/yyyy"
+            // parses it without error even when the device actually meant "MM/dd/yyyy"; most of the
+            // fleet never hits this because some date in the batch has a day >12 and that alone
+            // disambiguates the whole export — but a quiet printer whose cached entries all fall in
+            // the 1st-12th of the month can go months importing every row backwards unnoticed). If
+            // swapping day/month instead lands on a sane non-future date, use that; if neither does,
+            // reject the row rather than store a job dated in the future.
+            var cutoff = DateTimeOffset.UtcNow.AddDays(1);
+            if (utc > cutoff)
+            {
+                if (dt.Day is >= 1 and <= 12)
+                {
+                    var swappedUtc = ToDeviceUtc(new DateTime(dt.Year, dt.Day, dt.Month, dt.Hour, dt.Minute, dt.Second));
+                    if (swappedUtc <= cutoff) { when = swappedUtc; return true; }
+                }
+                return false;
+            }
+
+            when = utc;
             return true;
         }
         return false;
+    }
+
+    // dt is the printer's own local wall-clock time (no offset info) — convert it to real UTC via
+    // the configured device time zone instead of mislabeling it as UTC.
+    private DateTimeOffset ToDeviceUtc(DateTime dt)
+    {
+        var utc = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(dt, DateTimeKind.Unspecified), _deviceTz);
+        return new DateTimeOffset(utc, TimeSpan.Zero);
     }
 
     private static string ExternalId(int printerId, DateTimeOffset when, string user, string doc)
