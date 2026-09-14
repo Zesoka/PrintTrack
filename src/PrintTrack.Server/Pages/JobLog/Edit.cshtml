@@ -91,7 +91,7 @@
     {
         <hr />
         <div class="small text-muted">
-            Último pull: @(c.LastPolledAt is { } t ? t.LocalDateTime.ToString("g") : "nunca")
+            Último pull: @(c.LastPolledAt is { } t ? Ui.Dt(t) : "nunca")
             · importados: @c.LastImported
             @if (c.LastError is { Length: > 0 }) { <br /><span class="text-danger">@c.LastError</span> }
         </div>

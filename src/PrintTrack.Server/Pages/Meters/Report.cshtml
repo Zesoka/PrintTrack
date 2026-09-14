@@ -37,9 +37,9 @@
                     <td><code>@r.Printer</code></td>
                     <td class="small">@r.DeviceName</td>
                     <td class="small text-muted">@r.Host</td>
-                    <td class="small text-nowrap">@r.BaselineAt?.LocalDateTime.ToString("dd/MM/yy")
+                    <td class="small text-nowrap">@(r.BaselineAt is { } ba ? Ui.Dt(ba) : "—")
                         @if (r.Partial) { <span class="badge bg-warning text-dark">parcial</span> }</td>
-                    <td class="small text-nowrap">@r.EndAt?.LocalDateTime.ToString("dd/MM/yy")</td>
+                    <td class="small text-nowrap">@(r.EndAt is { } ea ? Ui.Dt(ea) : "—")</td>
                     <td class="text-end fw-semibold">@r.DeltaTotal.ToString("N0")</td>
                     <td class="text-end">@(r.DeltaMono?.ToString("N0") ?? "—")</td>
                     <td class="text-end">@(r.DeltaColor?.ToString("N0") ?? "—")</td>

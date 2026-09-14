@@ -1,3 +1,4 @@
+using System.Globalization;
 using PrintTrack.Shared;
 
 namespace PrintTrack.Server;
@@ -47,6 +48,11 @@ public static class Ui
         if (d < TimeSpan.FromDays(1)) return $"hace {(int)d.TotalHours} h";
         return $"hace {(int)d.TotalDays} d";
     }
+
+    /// <summary>Fixed dd/MM/yyyy HH:mm rendering for every absolute date shown in the app — never
+    /// ".ToString(\"g\")", which silently follows whatever culture the container/OS happens to have
+    /// (and made the same field print differently depending on the box it ran on).</summary>
+    public static string Dt(DateTimeOffset when) => when.LocalDateTime.ToString("dd/MM/yyyy HH:mm", CultureInfo.InvariantCulture);
 
     /// <summary>Translate a raw LastError string (Job Log or SNMP) into a short label + plain-language
     /// explanation/next-step, from the patterns seen across the real fleet.</summary>

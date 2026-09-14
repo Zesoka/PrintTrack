@@ -62,7 +62,7 @@
             @foreach (var j in Model.Jobs)
             {
                 <tr>
-                    <td class="small text-nowrap">@j.SubmittedAt.LocalDateTime.ToString("g")</td>
+                    <td class="small text-nowrap">@Ui.Dt(j.SubmittedAt)</td>
                     <td class="small">@(j.Site?.Name ?? "—")</td>
                     <td class="small">@(j.EndUser.Department?.Name ?? "—")</td>
                     <td>@j.UserNameRaw</td>

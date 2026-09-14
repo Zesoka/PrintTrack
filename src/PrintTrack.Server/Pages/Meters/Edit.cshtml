@@ -120,7 +120,7 @@
                     @foreach (var r in Model.Readings)
                     {
                         <tr>
-                            <td class="small text-nowrap">@r.TakenAt.LocalDateTime.ToString("g")</td>
+                            <td class="small text-nowrap">@Ui.Dt(r.TakenAt)</td>
                             <td class="small">@(r.Source == PrintTrack.Server.Data.MeterSource.Manual ? "manual" : "SNMP")</td>
                             <td class="text-end">@r.Total.ToString("N0")</td>
                             <td class="text-end">@(r.Mono?.ToString("N0") ?? "—")</td>
