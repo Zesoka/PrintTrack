@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Text;
+using System.Text.RegularExpressions;
 using AngleSharp;
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
@@ -87,13 +88,18 @@ public sealed class JobLogFetcher(ILogger<JobLogFetcher> logger)
 
             if (LooksLikeSignIn(url.ToString(), html))
             {
-                if (string.IsNullOrWhiteSpace(cfg.Username))
-                    return (null, "El equipo pide login para ver el registro. Cargá usuario/clave en la config.", diag.ToString());
-                await TryLoginAsync(http, authority, cfg, ct);
+                // This EWS Sign-In is a PIN form (Administrator password only, no separate
+                // username field) — Password is what actually gates whether we can attempt it.
+                if (string.IsNullOrWhiteSpace(cfg.Password))
+                    return (null, "El equipo pide login para ver el registro. Cargá la clave de Administrador en la config.", diag.ToString());
+                await TryLoginAsync(http, authority, html, cfg, ct);
                 resp = await http.GetAsync(editUrl, ct);
                 html = Decode(await resp.Content.ReadAsByteArrayAsync(ct));
                 url = resp.RequestMessage?.RequestUri ?? editUrl;
                 Log(diag, "GET (post-login)", url, (int)resp.StatusCode, html);
+
+                if (LooksLikeSignIn(url.ToString(), html))
+                    return (null, "El login no funcionó (¿clave de Administrador incorrecta?). Revisá el Diagnóstico.", diag.ToString());
             }
 
             if (!resp.IsSuccessStatusCode)
@@ -289,15 +295,32 @@ public sealed class JobLogFetcher(ILogger<JobLogFetcher> logger)
             || err.Contains("refused", StringComparison.OrdinalIgnoreCase)
             || err.Contains("connection could be made", StringComparison.OrdinalIgnoreCase));
 
-    private static async Task TryLoginAsync(HttpClient http, string authority, PrinterJobLogConfig cfg, CancellationToken ct)
+    // The real EWS Sign-In form (id="DynamicSignIn") is a PIN-style login, not a
+    // username/password one: "Sign-In Method" (agentIdSelect, always the local-device PIN agent),
+    // "Local Device Account" (PinDropDown — Administrator vs. a numbered local user), and a single
+    // password/PIN box named PasswordTextBox — plus a per-page CSRFToken the POST must echo back or
+    // the device silently ignores it and just re-serves the same Sign-In page. Our previous version
+    // posted fields ("Username"/"Password"/"SignIn") that don't exist on this form at all, so every
+    // automatic login attempt failed silently regardless of what credentials were configured.
+    private static async Task TryLoginAsync(HttpClient http, string authority, string signInHtml, PrinterJobLogConfig cfg, CancellationToken ct)
     {
+        var csrf = Regex.Match(signInHtml, "id=\"CSRFToken\"[^>]*value=\"([^\"]*)\"", RegexOptions.IgnoreCase);
+        var formTag = Regex.Match(signInHtml, "<form\\b[^>]*id=\"DynamicSignIn\"[^>]*>", RegexOptions.IgnoreCase);
+        var action = formTag.Success ? Regex.Match(formTag.Value, "action=\"([^\"]+)\"", RegexOptions.IgnoreCase) : Match.Empty;
+
+        var postUrl = action.Success
+            ? new Uri(new Uri(authority), WebUtility.HtmlDecode(action.Groups[1].Value))
+            : new Uri($"{authority}/hp/device/SignIn/Index");
+
         var form = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Username"] = cfg.Username ?? "",
-            ["Password"] = cfg.Password ?? "",
-            ["SignIn"] = "Sign In",
+            ["CSRFToken"] = csrf.Success ? WebUtility.HtmlDecode(csrf.Groups[1].Value) : "",
+            ["agentIdSelect"] = "hp_EmbeddedPin_v1",
+            ["PinDropDown"] = "AdminItem",
+            ["PasswordTextBox"] = cfg.Password ?? "",
+            ["signInOk"] = "Sign In",
         });
-        try { using var _ = await http.PostAsync($"{authority}/hp/device/SignIn/Index", form, ct); }
+        try { using var _ = await http.PostAsync(postUrl, form, ct); }
         catch { /* the scrape attempt will surface the real error */ }
     }
 
